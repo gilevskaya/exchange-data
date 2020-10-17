@@ -22,7 +22,7 @@ const App = () => {
       }}
     >
       <WSTest />
-      {/* <Deribit /> */}
+      <Deribit />
     </div>
   );
 };
@@ -40,7 +40,7 @@ type WSRes_Subscribe = {
 type WSRes = WSRes_Subscribe;
 
 const WSTest = () => {
-  const { readyState, sendMessage, lastMessage } = useWebSocket<WSReq, WSRes>(
+  const { readyState, sendMessage, lastMessage } = useWebSocket<WSRes, WSReq>(
     'wss://test.deribit.com/ws/api/v2',
     {
       shouldReconnect: true,
@@ -63,7 +63,7 @@ const WSTest = () => {
           console.log('ws error', error);
         });
     }
-  }, [readyState]);
+  }, [readyState, sendMessage]);
 
   React.useEffect(() => {
     if (lastMessage != null) console.log('lastMessage', lastMessage);

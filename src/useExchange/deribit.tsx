@@ -1,7 +1,5 @@
-// tslint-disable
-import React from 'react';
-
 // https://docs.deribit.com/#json-rpc
+import React from 'react';
 
 import { useWebSocket } from '../utils/useWebSocket';
 import {
@@ -20,7 +18,6 @@ const TICK_DIRECTION_MAP = {
   3: TickDirection.ZERO_MINUS,
 };
 const TRADES_STORE_LIMIT = 50;
-const SUBSCRIPTIONS_MSG_ID = 1234;
 
 const getSubcriptionName = (subs: Channel, instrument: string): string =>
   ({
@@ -33,18 +30,17 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
   const [orderbook, setOrderbook] = React.useState<TOrderBook | null>(null);
   const [lastPrice, setLastPrice] = React.useState<number | null>(null);
   const [trades, setTrades] = React.useState<TTrade[] | null>(null);
-
   const [options, setOptions] = React.useState<any>({}); // TODO: types
 
   const { readyState, lastMessage, sendMessage } = useWebSocket<
-    TDeribitMessage
+    TWSMessageDeribit_Res,
+    TWSMessageDeribit_Req
   >(WS_URL_DERIBIT, {
     shouldReconnect: true,
     onOpen: async () => {
-      await sendMessage(
+      const subcriptionRes = (await sendMessage(
         JSON.stringify({
           jsonrpc: '2.0',
-          id: SUBSCRIPTIONS_MSG_ID,
           method: 'public/subscribe',
           params: {
             channels: subscriptions.map(s => {
@@ -60,28 +56,25 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
             }),
           },
         })
-      );
+      )) as TWSMessageDeribit_Res_Subscription;
+      subcriptionRes.result.forEach(s => {
+        if (s.startsWith('trades.')) setTrades([]);
+      });
     },
     onClose: () => {
       setOrderbook(null);
       setLastPrice(null);
-      setTrades([]);
+      setTrades(null);
     },
   });
 
   React.useEffect(() => {
     if (!lastMessage) return;
-    if (lastMessage.id === SUBSCRIPTIONS_MSG_ID) {
-      const subs = (lastMessage as TDeribitSubscriptionsMessage).result;
-      subs.forEach(s => {
-        if (s.startsWith('trades.')) setTrades([]);
-      });
-    }
-    if (!(lastMessage as TDeribitDataMessage)?.params?.data) return;
+    if (!(lastMessage as TWSMessageDeribit_Res_Data)?.params?.data) return;
     const [
       type,
       instrument,
-    ] = (lastMessage as TDeribitDataMessage).params.channel.split('.');
+    ] = (lastMessage as TWSMessageDeribit_Res_Data).params.channel.split('.');
     const option = options[instrument] && options[instrument][type];
 
     switch (type) {
@@ -90,7 +83,7 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
           bids,
           asks,
           change_id: id,
-        } = (lastMessage as TDeribitOrderBookMessage).params.data;
+        } = (lastMessage as TWSMessageDeribit_Res_Orderbook).params.data;
 
         const mapEditFormat = (edit: TDeribitOrderBookEdit) => {
           const [, price, size] = edit;
@@ -113,12 +106,12 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
       }
       case 'ticker': {
         setLastPrice(
-          (lastMessage as TDeribitTickerMessage).params.data.last_price
+          (lastMessage as TWSMessageDeribit_Res_Ticker).params.data.last_price
         );
         break;
       }
       case 'trades': {
-        const newTrades = (lastMessage as TDeribitTradesMessage).params.data.map(
+        const newTrades = (lastMessage as TWSMessageDeribit_Res_Trades).params.data.map(
           d => ({
             id: d.trade_id,
             size: d.amount,
@@ -141,26 +134,28 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
         console.log('deribit', lastMessage);
       }
     }
-  }, [lastMessage]);
+  }, [lastMessage, options]);
 
   return { readyState, orderbook, lastPrice, trades };
 };
 
 // Types
 
+type TWSMessageDeribit_Res_Subscription = {
+  result: string[];
+};
+type TWSMessageDeribit_Req_Subscription = {
+  jsonrpc: '2.0';
+  method: 'public/subscribe';
+  params: { channels: string[] };
+};
+
 export type TDeribitOrderBookEdit = [
   'new' | 'change' | 'delete',
   number,
   number
 ]; // type, price, size
-
-type TDeribitSubscriptionsMessage = {
-  id: number;
-  result: string[];
-};
-
-type TDeribitOrderBookMessage = {
-  id: number;
+type TWSMessageDeribit_Res_Orderbook = {
   params: {
     channel: string; // "book.BTC-PERPETUAL.raw";
     data: {
@@ -171,8 +166,7 @@ type TDeribitOrderBookMessage = {
   };
 };
 
-type TDeribitTickerMessage = {
-  id: number;
+type TWSMessageDeribit_Res_Ticker = {
   params: {
     channel: string; // "ticker.BTC-PERPETUAL.raw";
     data: {
@@ -183,8 +177,7 @@ type TDeribitTickerMessage = {
   };
 };
 
-type TDeribitTradesMessage = {
-  id: number;
+type TWSMessageDeribit_Res_Trades = {
   params: {
     channel: string; // "trades.BTC-PERPETUAL.raw";
     data: Array<{
@@ -201,11 +194,13 @@ type TDeribitTradesMessage = {
   };
 };
 
-type TDeribitDataMessage =
-  | TDeribitOrderBookMessage
-  | TDeribitTickerMessage
-  | TDeribitTradesMessage;
+type TWSMessageDeribit_Res_Data =
+  | TWSMessageDeribit_Res_Orderbook
+  | TWSMessageDeribit_Res_Ticker
+  | TWSMessageDeribit_Res_Trades;
 
-export type TDeribitMessage =
-  | TDeribitSubscriptionsMessage
-  | TDeribitDataMessage;
+type TWSMessageDeribit_Res =
+  | TWSMessageDeribit_Res_Subscription
+  | TWSMessageDeribit_Res_Data;
+
+type TWSMessageDeribit_Req = TWSMessageDeribit_Req_Subscription;

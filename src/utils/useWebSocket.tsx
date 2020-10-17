@@ -28,23 +28,26 @@ export function useWebSocket<Res, Req = WebSocketMessage>(
 ) {
   const ws = React.useRef<WebSocket | null>(null);
   const [lastMessage, setLastMessage] = React.useState<Res | null>(null);
-  // WebSocket ready state fails to show clised
+  // because WebSocket readyState sucks
   const [readyState, setReadyState] = React.useState<ReadyState>(
     ReadyState.UNINITIATED
   );
   const pendingMap = React.useRef<Map<string, any>>(new Map());
 
-  const sendMessage = React.useCallback((req: Res | string): Promise<Res> => {
-    return new Promise((resolve, reject) => {
-      if (!ws.current || ws.current.readyState !== WebSocket.OPEN)
-        return reject('disconnected');
-      const reqId = nanoid();
-      const reqObj: Req = typeof req === 'string' ? JSON.parse(req) : req;
-      const reqWithId = { ...reqObj, id: reqId };
-      pendingMap.current.set(reqId, { resolve, reject });
-      ws.current.send(JSON.stringify(reqWithId));
-    });
-  }, []);
+  const sendMessage = React.useCallback(
+    (req: Req | string): Promise<Res> => {
+      return new Promise((resolve, reject) => {
+        if (!ws.current || ws.current.readyState !== ReadyState.OPEN)
+          return reject('disconnected');
+        const reqId = nanoid();
+        const reqObj: Req = typeof req === 'string' ? JSON.parse(req) : req;
+        const reqWithId = { ...reqObj, id: reqId };
+        pendingMap.current.set(reqId, { resolve, reject });
+        ws.current.send(JSON.stringify(reqWithId));
+      });
+    },
+    [ws]
+  );
 
   const processMessage = React.useCallback((res: string): Res | null => {
     const msg = JSON.parse(res);
