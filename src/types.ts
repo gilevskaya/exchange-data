@@ -4,7 +4,7 @@ export enum Exchange {
   BINANCE = 'binance',
 }
 
-export enum Subscription {
+export enum Channel {
   TICKER = 'ticker',
   TRADES = 'trades',
   ORDERBOOK = 'orderbook',
@@ -22,24 +22,16 @@ export enum TickDirection {
   ZERO_MINUS,
 }
 
-export type TSubscription =
+export type TSubscription = { exchange: Exchange; instrument: string } & (
+  | { channel: Channel.ORDERBOOK; options?: {} }
+  | { channel: Channel.TICKER; options?: {} }
   | {
-      type: Subscription.ORDERBOOK;
-      instrument: string;
-      options?: {};
-    }
-  | {
-      type: Subscription.TICKER;
-      instrument: string;
-      options?: {};
-    }
-  | {
-      type: Subscription.TRADES;
-      instrument: string;
+      channel: Channel.TRADES;
       options?: {
         limit?: number;
       };
-    };
+    }
+);
 
 export type TTrade = {
   id: string;

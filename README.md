@@ -1,4 +1,11 @@
-# TSDX React User Guide
+# React hook for crypto trading exchanges public data
+
+WARNING: Development in progress.
+
+## Todo
+
+- Add exchange to the sub option
+- make subcriptions prop always reflect current subscriptions and unsubscribe if needed
 
 Congrats! You just saved yourself hours of work by bootstrapping this project with TSDX. Let’s get you oriented with what’s here and how to use it.
 

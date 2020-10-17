@@ -1,7 +1,13 @@
 import 'react-app-polyfill/ie11';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import { useExchange, ReadyState, Subscription, Exchange } from '../.';
+import {
+  useExchange,
+  ReadyState,
+  Channel,
+  Exchange,
+  TSubscription,
+} from '../.';
 
 const App = () => {
   return (
@@ -11,13 +17,15 @@ const App = () => {
   );
 };
 
-const SUBSCRIPTIONS = [
+const SUBSCRIPTIONS: TSubscription[] = [
   {
-    type: Subscription.TICKER,
+    exchange: Exchange.DERIBIT,
+    channel: Channel.TICKER,
     instrument: 'BTC-PERPETUAL',
   },
   {
-    type: Subscription.TRADES,
+    exchange: Exchange.DERIBIT,
+    channel: Channel.TRADES,
     instrument: 'BTC-PERPETUAL',
     options: {
       limit: 20,
@@ -34,11 +42,13 @@ const Deribit = () => {
     <div>
       <div>Deribit [{ReadyState[readyState]}]</div>
       <div>Last price: {lastPrice}</div>
-      {trades.map((t, i) => (
-        <div key={t.id}>
-          {i + 1}: {JSON.stringify(t)}
-        </div>
-      ))}
+      {trades == null && <div>Loading trades...</div>}
+      {trades != null &&
+        trades.map((t, i) => (
+          <div key={t.id}>
+            {i + 1}: {JSON.stringify(t)}
+          </div>
+        ))}
     </div>
   );
 };

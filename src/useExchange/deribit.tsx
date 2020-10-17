@@ -7,13 +7,7 @@ import {
   TOrderBook,
   TOrderBookSide,
 } from '../utils/orderbook';
-import {
-  Side,
-  Subscription,
-  TSubscription,
-  TickDirection,
-  TTrade,
-} from '../types';
+import { Side, Channel, TSubscription, TickDirection, TTrade } from '../types';
 
 const WS_URL_DERIBIT = 'wss://www.deribit.com/ws/api/v2';
 // Direction of the "tick" (0 = Plus Tick, 1 = Zero-Plus Tick, 2 = Minus Tick, 3 = Zero-Minus Tick).
@@ -24,18 +18,19 @@ const TICK_DIRECTION_MAP = {
   3: TickDirection.ZERO_MINUS,
 };
 const TRADES_STORE_LIMIT = 50;
+const SUBSCRIPTIONS_MSG_ID = 1234;
 
-const getSubcriptionName = (subs: Subscription, instrument: string): string =>
+const getSubcriptionName = (subs: Channel, instrument: string): string =>
   ({
-    [Subscription.ORDERBOOK]: `book.${instrument}.raw`,
-    [Subscription.TICKER]: `ticker.${instrument}.raw`,
-    [Subscription.TRADES]: `trades.${instrument}.raw`,
+    [Channel.ORDERBOOK]: `book.${instrument}.raw`,
+    [Channel.TICKER]: `ticker.${instrument}.raw`,
+    [Channel.TRADES]: `trades.${instrument}.raw`,
   }[subs]);
 
 export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
   const [orderbook, setOrderbook] = React.useState<TOrderBook | null>(null);
   const [lastPrice, setLastPrice] = React.useState<number | null>(null);
-  const [trades, setTrades] = React.useState<TTrade[]>([]);
+  const [trades, setTrades] = React.useState<TTrade[] | null>(null);
 
   const [options, setOptions] = React.useState<any>({}); // TODO: types
 
@@ -46,7 +41,7 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
       sendMessage(
         JSON.stringify({
           jsonrpc: '2.0',
-          id: 3600,
+          id: SUBSCRIPTIONS_MSG_ID,
           method: 'public/subscribe',
           params: {
             channels: subscriptions.map(s => {
@@ -54,11 +49,11 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
                 setOptions((o: any) => {
                   // TODO:
                   if (!o[s.instrument]) o[s.instrument] = {};
-                  o[s.instrument][s.type] = s.options;
+                  o[s.instrument][s.channel] = s.options;
                   return o;
                 });
               }
-              return getSubcriptionName(s.type, s.instrument);
+              return getSubcriptionName(s.channel, s.instrument);
             }),
           },
         })
@@ -67,13 +62,24 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
     onClose: () => {
       setOrderbook(null);
       setLastPrice(null);
+      setTrades([]);
     },
   });
 
   React.useEffect(() => {
-    if (!lastMessage?.params?.data) return;
-    const [type, instrument] = lastMessage.params.channel.split('.');
-    const option = options[instrument][type];
+    if (!lastMessage) return;
+    if (lastMessage.id === SUBSCRIPTIONS_MSG_ID) {
+      const subs = (lastMessage as TDeribitSubscriptionsMessage).result;
+      subs.forEach(s => {
+        if (s.startsWith('trades.')) setTrades([]);
+      });
+    }
+    if (!(lastMessage as TDeribitDataMessage)?.params?.data) return;
+    const [
+      type,
+      instrument,
+    ] = (lastMessage as TDeribitDataMessage).params.channel.split('.');
+    const option = options[instrument] && options[instrument][type];
 
     switch (type) {
       case 'book': {
@@ -120,6 +126,7 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
           })
         );
         setTrades(ts => {
+          if (ts === null) ts = [];
           const upd = [...newTrades, ...ts];
           if (upd.length > option?.limit || TRADES_STORE_LIMIT) {
             return upd.slice(0, option?.limit || TRADES_STORE_LIMIT);
@@ -127,8 +134,9 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
         });
         break;
       }
-      default:
+      default: {
         console.log('deribit', lastMessage);
+      }
     }
   }, [lastMessage]);
 
@@ -142,7 +150,14 @@ export type TDeribitOrderBookEdit = [
   number,
   number
 ]; // type, price, size
+
+type TDeribitSubscriptionsMessage = {
+  id: number;
+  result: string[];
+};
+
 type TDeribitOrderBookMessage = {
+  id: number;
   params: {
     channel: string; // "book.BTC-PERPETUAL.raw";
     data: {
@@ -154,6 +169,7 @@ type TDeribitOrderBookMessage = {
 };
 
 type TDeribitTickerMessage = {
+  id: number;
   params: {
     channel: string; // "ticker.BTC-PERPETUAL.raw";
     data: {
@@ -165,6 +181,7 @@ type TDeribitTickerMessage = {
 };
 
 type TDeribitTradesMessage = {
+  id: number;
   params: {
     channel: string; // "trades.BTC-PERPETUAL.raw";
     data: Array<{
@@ -181,7 +198,11 @@ type TDeribitTradesMessage = {
   };
 };
 
-export type TDeribitMessage =
+type TDeribitDataMessage =
   | TDeribitOrderBookMessage
   | TDeribitTickerMessage
   | TDeribitTradesMessage;
+
+export type TDeribitMessage =
+  | TDeribitSubscriptionsMessage
+  | TDeribitDataMessage;
