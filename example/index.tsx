@@ -7,14 +7,69 @@ import {
   Channel,
   Exchange,
   TSubscription,
+  useWebSocket,
 } from '../.';
 
 const App = () => {
   return (
-    <div>
-      <Deribit />
+    <div
+      style={{
+        fontFamily: 'sans-serif',
+        padding: '1rem',
+        height: '100vh',
+        background: '#222',
+        color: '#eee',
+      }}
+    >
+      <WSTest />
+      {/* <Deribit /> */}
     </div>
   );
+};
+
+type WSReq_Subscribe = {
+  jsonrpc: '2.0';
+  method: string;
+  params: { channels: string[] };
+};
+type WSReq = WSReq_Subscribe;
+type WSRes_Subscribe = {
+  jsonrpc: '2.0';
+  result: string[];
+};
+type WSRes = WSRes_Subscribe;
+
+const WSTest = () => {
+  const { readyState, sendMessage, lastMessage } = useWebSocket<WSReq, WSRes>(
+    'wss://test.deribit.com/ws/api/v2',
+    {
+      shouldReconnect: true,
+    }
+  );
+
+  React.useEffect(() => {
+    if (readyState === ReadyState.OPEN) {
+      sendMessage({
+        jsonrpc: '2.0',
+        method: 'public/subscribe',
+        params: {
+          channels: ['ticker.BTC-PERPETUAL.raw'],
+        },
+      })
+        .then(res => {
+          console.log('ws res', res);
+        })
+        .catch(error => {
+          console.log('ws error', error);
+        });
+    }
+  }, [readyState]);
+
+  React.useEffect(() => {
+    if (lastMessage != null) console.log('lastMessage', lastMessage);
+  }, [readyState, lastMessage]);
+
+  return <div>WS Test: {ReadyState[readyState]}</div>;
 };
 
 const SUBSCRIPTIONS: TSubscription[] = [

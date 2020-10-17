@@ -1,5 +1,7 @@
-// https://docs.deribit.com/#json-rpc
+// tslint-disable
 import React from 'react';
+
+// https://docs.deribit.com/#json-rpc
 
 import { useWebSocket } from '../utils/useWebSocket';
 import {
@@ -37,8 +39,9 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
   const { readyState, lastMessage, sendMessage } = useWebSocket<
     TDeribitMessage
   >(WS_URL_DERIBIT, {
-    onOpen: () => {
-      sendMessage(
+    shouldReconnect: true,
+    onOpen: async () => {
+      await sendMessage(
         JSON.stringify({
           jsonrpc: '2.0',
           id: SUBSCRIPTIONS_MSG_ID,
