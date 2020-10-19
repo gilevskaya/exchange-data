@@ -23,6 +23,7 @@ export function useWebSocket<Res, Req = WebSocketMessage>(
     onOpen?: Function;
     onClose?: Function;
     onError?: Function;
+    manualConnect?: boolean;
     shouldReconnect?: boolean;
   }
 ) {
@@ -37,8 +38,14 @@ export function useWebSocket<Res, Req = WebSocketMessage>(
   const sendMessage = React.useCallback(
     (req: Req | string): Promise<Res> => {
       return new Promise((resolve, reject) => {
-        if (!ws.current || ws.current.readyState !== ReadyState.OPEN)
+        if (!ws.current || ws.current.readyState !== ReadyState.OPEN) {
+          console.log(
+            'trying to send message to a discounnected ws',
+            req,
+            ws.current
+          );
           return reject('disconnected');
+        }
         const reqId = nanoid();
         const reqObj: Req = typeof req === 'string' ? JSON.parse(req) : req;
         const reqWithId = { ...reqObj, id: reqId };
@@ -61,36 +68,55 @@ export function useWebSocket<Res, Req = WebSocketMessage>(
     return null;
   }, []);
 
-  const connect = React.useCallback((): WebSocket => {
-    const newws = new WebSocket(url);
+  const connect = React.useCallback((): Promise<boolean> => {
+    return new Promise(resolve => {
+      if (ws.current?.readyState === WebSocket.OPEN) {
+        return resolve(false);
+      }
 
-    setReadyState(WebSocket.CONNECTING);
-    newws.onopen = e => {
-      setReadyState(WebSocket.OPEN);
-      if (options?.onOpen) options.onOpen(e);
-    };
-    newws.onclose = e => {
-      setReadyState(WebSocket.CLOSED);
+      const newws = new WebSocket(url);
+
+      setReadyState(WebSocket.CONNECTING);
+      newws.onopen = e => {
+        setReadyState(WebSocket.OPEN);
+        if (options?.onOpen) options.onOpen(e);
+        resolve(true);
+      };
+      newws.onclose = e => {
+        setReadyState(WebSocket.CLOSED);
+        ws.current = null;
+        if (options?.onClose) options.onClose(e);
+        if (options?.shouldReconnect) connect();
+      };
+      newws.onerror = e => {
+        setReadyState(WebSocket.CLOSED);
+        if (options?.onError) options.onError(e);
+      };
+      newws.onmessage = e => {
+        const msg: Res | null = processMessage(e.data);
+        if (msg != null) setLastMessage(msg);
+      };
+      ws.current = newws;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const disconnect = React.useCallback((): Promise<boolean> => {
+    if (ws.current) {
+      ws.current.close();
       ws.current = null;
-      if (options?.onClose) options.onClose(e);
-      if (options?.shouldReconnect) ws.current = connect();
-    };
-    newws.onerror = e => {
-      setReadyState(WebSocket.CLOSED);
-      if (options?.onError) options.onError(e);
-    };
-    newws.onmessage = e => {
-      const msg: Res | null = processMessage(e.data);
-      if (msg != null) setLastMessage(msg);
-    };
-    return newws;
-  }, [url, options, processMessage]);
+      return Promise.resolve(true);
+    }
+    return Promise.resolve(false);
+  }, []);
 
+  // connect & re-connect:
   React.useEffect(() => {
     if (ws.current == null || ws.current.readyState === WebSocket.CLOSED) {
-      if (options?.shouldReconnect) ws.current = connect();
+      if (!options?.manualConnect) connect();
+      else if (ws.current && options?.shouldReconnect) connect();
     }
   }, [ws, connect, sendMessage, options]);
 
-  return { readyState, lastMessage, sendMessage };
+  return { readyState, lastMessage, sendMessage, connect, disconnect };
 }

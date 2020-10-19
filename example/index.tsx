@@ -37,18 +37,25 @@ type WSRes_Subscribe = {
   jsonrpc: '2.0';
   result: string[];
 };
-type WSRes = WSRes_Subscribe;
+type WSRes_Ticker = {
+  jsonrpc: '2.0';
+  params: {
+    channel: string;
+    data: object;
+  };
+};
+type WSRes = WSRes_Subscribe | WSRes_Ticker;
 
 const WSTest = () => {
-  const { readyState, sendMessage, lastMessage } = useWebSocket<WSRes, WSReq>(
-    'wss://test.deribit.com/ws/api/v2',
-    {
-      shouldReconnect: true,
-    }
-  );
-
-  React.useEffect(() => {
-    if (readyState === ReadyState.OPEN) {
+  const {
+    readyState,
+    sendMessage,
+    lastMessage,
+    connect,
+    disconnect,
+  } = useWebSocket<WSRes, WSReq>('wss://test.deribit.com/ws/api/v2', {
+    manualConnect: true,
+    onOpen: () => {
       sendMessage({
         jsonrpc: '2.0',
         method: 'public/subscribe',
@@ -62,12 +69,32 @@ const WSTest = () => {
         .catch(error => {
           console.log('ws error', error);
         });
-    }
-  }, [readyState, sendMessage]);
+    },
+  });
+
+  const messages = React.useRef<WSRes[]>([]);
 
   React.useEffect(() => {
-    if (lastMessage != null) console.log('lastMessage', lastMessage);
-  }, [readyState, lastMessage]);
+    connect().then(() => {
+      console.log('ws connected');
+    });
+  }, [connect]);
+
+  React.useEffect(() => {
+    console.log('connect changed', connect);
+  }, [connect]);
+
+  React.useEffect(() => {
+    if (!lastMessage) return;
+
+    console.log('lastMessage', lastMessage);
+    messages.current.push(lastMessage);
+    if (messages.current.length >= 5) {
+      disconnect().then(res => {
+        console.log('disconnected...', res);
+      });
+    }
+  }, [readyState, lastMessage, disconnect]);
 
   return <div>WS Test: {ReadyState[readyState]}</div>;
 };
