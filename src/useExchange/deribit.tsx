@@ -81,7 +81,7 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
     if (!lastMessage) return;
 
     // Reply to the heartbeat request
-    if (lastMessage as TWSMessageDeribit_Res_Heartbeat) {
+    if (isHeartbeatTrigger(lastMessage)) {
       sendMessage({
         method: 'public/ping',
         params: {},
@@ -89,12 +89,9 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
       });
       return;
     }
+    if (!isDataResponse(lastMessage)) return;
 
-    if (!(lastMessage as TWSMessageDeribit_Res_Data)?.params?.data) return;
-    const [
-      type,
-      instrument,
-    ] = (lastMessage as TWSMessageDeribit_Res_Data).params.channel.split('.');
+    const [type, instrument] = lastMessage.params.channel.split('.');
     const option = options[instrument] && options[instrument][type];
 
     switch (type) {
@@ -251,6 +248,24 @@ type TWSMessageDeribit_Res_Heartbeat = {
     type: 'test_request';
   };
 };
+
+function isDataResponse(
+  message: object
+): message is TWSMessageDeribit_Res_Data {
+  const m = message as TWSMessageDeribit_Res_Data;
+  return Boolean(m.params.data);
+}
+
+function isHeartbeatTrigger(
+  message: object
+): message is TWSMessageDeribit_Res_Heartbeat {
+  const m = message as TWSMessageDeribit_Res_Heartbeat;
+  return (
+    m.jsonrpc === '2.0' &&
+    m.method === 'heartbeat' &&
+    m.params.type === 'test_request'
+  );
+}
 
 type TWSMessageDeribit_Res =
   | TWSMessageDeribit_Res_Pong
