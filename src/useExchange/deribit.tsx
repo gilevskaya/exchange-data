@@ -60,6 +60,15 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
       subcriptionRes.result.forEach(s => {
         if (s.startsWith('trades.')) setTrades([]);
       });
+
+      // Get the heartbeat going
+      await sendMessage({
+        jsonrpc: '2.0',
+        method: 'public/set_heartbeat',
+        params: {
+          interval: 60,
+        },
+      });
     },
     onClose: () => {
       setOrderbook(null);
@@ -70,6 +79,17 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
 
   React.useEffect(() => {
     if (!lastMessage) return;
+
+    // Reply to the heartbeat request
+    if (lastMessage as TWSMessageDeribit_Res_Heartbeat) {
+      sendMessage({
+        method: 'public/ping',
+        params: {},
+        jsonrpc: '2.0',
+      });
+      return;
+    }
+
     if (!(lastMessage as TWSMessageDeribit_Res_Data)?.params?.data) return;
     const [
       type,
@@ -134,7 +154,7 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
         console.log('deribit', lastMessage);
       }
     }
-  }, [lastMessage, options]);
+  }, [sendMessage, lastMessage, options]);
 
   return { readyState, orderbook, lastPrice, trades };
 };
@@ -199,8 +219,46 @@ type TWSMessageDeribit_Res_Data =
   | TWSMessageDeribit_Res_Ticker
   | TWSMessageDeribit_Res_Trades;
 
+type TWSMessageDeribit_Req_Ping = {
+  jsonrpc: '2.0';
+  method: 'public/ping';
+  id?: number;
+  params: {};
+};
+
+type TWSMessageDeribit_Req_SetHeartbeat = {
+  jsonrpc: '2.0';
+  method: 'public/set_heartbeat';
+  params: {
+    interval: number;
+  };
+};
+
+type TWSMessageDeribit_Res_Pong = {
+  jsonrpc: '2.0';
+  id?: number;
+  result: 'pong';
+  usIn: number;
+  usOut: number;
+  usDiff: number;
+  testnet: boolean;
+};
+
+type TWSMessageDeribit_Res_Heartbeat = {
+  jsonrpc: '2.0';
+  method: 'heartbeat';
+  params: {
+    type: 'test_request';
+  };
+};
+
 type TWSMessageDeribit_Res =
+  | TWSMessageDeribit_Res_Pong
+  | TWSMessageDeribit_Res_Heartbeat
   | TWSMessageDeribit_Res_Subscription
   | TWSMessageDeribit_Res_Data;
 
-type TWSMessageDeribit_Req = TWSMessageDeribit_Req_Subscription;
+type TWSMessageDeribit_Req =
+  | TWSMessageDeribit_Req_Subscription
+  | TWSMessageDeribit_Req_Ping
+  | TWSMessageDeribit_Req_SetHeartbeat;
