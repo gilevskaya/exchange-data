@@ -9,25 +9,28 @@ import {
   TSubscription,
 } from '../../dist';
 
-import { Manual } from './pages/manual';
+import { Manual } from './pages/Manual';
+import { Exchanges } from './pages/Exchanges';
 
 import './tailwind.output.css';
 
 const App = () => {
   if (window.location.pathname === '/manual') return <Manual />;
-  return (
-    <div
-      style={{
-        fontFamily: 'sans-serif',
-        padding: '1rem',
-        height: '100vh',
-        background: '#222',
-        color: '#eee',
-      }}
-    >
-      <Deribit />
-    </div>
-  );
+  if (window.location.pathname === '/deribit')
+    return (
+      <div
+        style={{
+          fontFamily: 'sans-serif',
+          padding: '1rem',
+          height: '100vh',
+          background: '#222',
+          color: '#eee',
+        }}
+      >
+        <Deribit />
+      </div>
+    );
+  return <Exchanges />;
 };
 
 const SUBSCRIPTIONS: TSubscription[] = [

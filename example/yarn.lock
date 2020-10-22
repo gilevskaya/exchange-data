@@ -4417,10 +4417,10 @@ react-app-polyfill@^1.0.0:
     regenerator-runtime "^0.13.3"
     whatwg-fetch "^3.0.0"
 
-react-grid-dashboard@^0.0.12:
-  version "0.0.12"
-  resolved "https://registry.yarnpkg.com/react-grid-dashboard/-/react-grid-dashboard-0.0.12.tgz#91afec9fd1f08a35748fea2f81d991b5b3aaabbf"
-  integrity sha512-fo1np2wc+sqYneCFAQ2x5Ezk/zkwig/1qn3zqbVzx/zIU3ELN0u5FjGRyqJzCzlPtZAPwXc/B+sfog7qfSRsUQ==
+react-grid-dashboard@^0.0.14:
+  version "0.0.14"
+  resolved "https://registry.yarnpkg.com/react-grid-dashboard/-/react-grid-dashboard-0.0.14.tgz#784ed70a27eb8f38b1fa834e59a1582e1089a468"
+  integrity sha512-+znwTQv7mRc+7rXs9p3HcQ6VOEIEzcCqrAQp4oSoKhzqO5su9ySNj+gMVPhNsWBneoSKClbfF+eFY+sepmy2cA==
 
 readable-stream@^2.0.2, readable-stream@^2.2.2, readable-stream@^2.3.3, readable-stream@^2.3.6, readable-stream@~2.3.3, readable-stream@~2.3.6:
   version "2.3.7"

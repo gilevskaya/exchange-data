@@ -73,7 +73,7 @@ export const Manual = () => {
       </div>
       {lastMessage && (
         <div className="m-1 mt-4 text-xs">
-          {JSON.stringify(lastMessage, null, 1)}
+          <pre> {JSON.stringify(lastMessage, null, 2)}</pre>
         </div>
       )}
     </div>

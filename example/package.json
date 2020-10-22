@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "react-app-polyfill": "^1.0.0",
-    "react-grid-dashboard": "^0.0.12",
+    "react-grid-dashboard": "^0.0.14",
     "tailwindcss": "^1.9.5"
   },
   "alias": {
