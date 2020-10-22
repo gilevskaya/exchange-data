@@ -263,7 +263,7 @@ function isHeartbeatTrigger(
   return (
     m.jsonrpc === '2.0' &&
     m.method === 'heartbeat' &&
-    m.params.type === 'test_request'
+    m.params?.type === 'test_request'
   );
 }
 

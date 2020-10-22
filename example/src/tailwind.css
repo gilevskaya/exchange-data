@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  @apply bg-black-800;
+  @apply text-black-200;
+}
+body {
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
