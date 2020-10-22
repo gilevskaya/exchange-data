@@ -10,8 +10,13 @@
     "build": "parcel build index.html"
   },
   "dependencies": {
+    "humanize": "^0.0.9",
+    "react": ">= 16.8.0",
     "react-app-polyfill": "^1.0.0",
+    "react-dom": ">= 16.8.0",
     "react-grid-dashboard": "^0.0.14",
+    "react-is": ">= 16.8.0",
+    "styled-components": "^5.2.0",
     "tailwindcss": "^1.9.5"
   },
   "alias": {
