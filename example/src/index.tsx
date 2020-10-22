@@ -50,10 +50,9 @@ const SUBSCRIPTIONS: TSubscription[] = [
 ];
 
 const Deribit = () => {
-  const { readyState, lastPrice, trades } = useExchange(
-    Exchange.DERIBIT,
-    SUBSCRIPTIONS
-  );
+  const {
+    [Exchange.DERIBIT]: { readyState, lastPrice, trades },
+  } = useExchange(SUBSCRIPTIONS);
   return (
     <div>
       <div>Deribit [{ReadyState[readyState]}]</div>

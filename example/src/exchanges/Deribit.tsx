@@ -22,7 +22,9 @@ const SUBSCRIPTIONS: TSubscription[] = [
 ];
 
 export const Deribit = () => {
-  const { readyState, trades } = useExchange(Exchange.DERIBIT, SUBSCRIPTIONS);
+  const {
+    [Exchange.DERIBIT]: { readyState, trades },
+  } = useExchange(SUBSCRIPTIONS);
 
   return (
     <>
@@ -36,9 +38,7 @@ export const Deribit = () => {
       </Dashboard.Item>
       <Dashboard.Item {...{ x: 1, y: 2 }}>
         <Widget isFull={true} isScrollable={true}>
-          <div className="h-full">
-            <Trades trades={trades} />
-          </div>
+          <Trades trades={trades} />
         </Widget>
       </Dashboard.Item>
     </>

@@ -7,7 +7,14 @@ import {
   TOrderBook,
   TOrderBookSide,
 } from '../utils/orderbook';
-import { Side, Channel, TSubscription, TickDirection, TTrade } from '../types';
+import {
+  Side,
+  Channel,
+  TSubscription,
+  TickDirection,
+  TTrade,
+  Exchange,
+} from '../types';
 
 const WS_URL_DERIBIT = 'wss://www.deribit.com/ws/api/v2';
 // Direction of the "tick" (0 = Plus Tick, 1 = Zero-Plus Tick, 2 = Minus Tick, 3 = Zero-Minus Tick).
@@ -26,7 +33,7 @@ const getSubcriptionName = (subs: Channel, instrument: string): string =>
     [Channel.TRADES]: `trades.${instrument}.raw`,
   }[subs]);
 
-export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
+export const useDeribit = (subscriptions: TSubscription[] = []) => {
   const [orderbook, setOrderbook] = React.useState<TOrderBook | null>(null);
   const [lastPrice, setLastPrice] = React.useState<number | null>(null);
   const [trades, setTrades] = React.useState<TTrade[] | null>(null);
@@ -43,17 +50,19 @@ export const useExchangeDeribit = (subscriptions: TSubscription[] = []) => {
           jsonrpc: '2.0',
           method: 'public/subscribe',
           params: {
-            channels: subscriptions.map(s => {
-              if (s.options) {
-                setOptions((o: any) => {
-                  // TODO:
-                  if (!o[s.instrument]) o[s.instrument] = {};
-                  o[s.instrument][s.channel] = s.options;
-                  return o;
-                });
-              }
-              return getSubcriptionName(s.channel, s.instrument);
-            }),
+            channels: subscriptions
+              .filter(({ exchange }) => exchange === Exchange.DERIBIT)
+              .map(s => {
+                if (s.options) {
+                  setOptions((o: any) => {
+                    // TODO:
+                    if (!o[s.instrument]) o[s.instrument] = {};
+                    o[s.instrument][s.channel] = s.options;
+                    return o;
+                  });
+                }
+                return getSubcriptionName(s.channel, s.instrument);
+              }),
           },
         })
       )) as TWSMessageDeribit_Res_Subscription;

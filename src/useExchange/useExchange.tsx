@@ -1,12 +1,11 @@
-import { Exchange, TSubscription } from '../types';
-import { useExchangeDeribit } from './deribit';
+import { TSubscription } from '../types';
+import { useDeribit } from './deribit';
+import { useBitmex } from './bitmex';
 
-export const useExchange = (
-  exchange: Exchange,
-  subscriptions: TSubscription[]
-) => {
-  if (exchange === Exchange.DERIBIT) return useExchangeDeribit(subscriptions);
-  throw new Error('Unsupported exchange'); // TODO: ...
+export const useExchange = (subscriptions: TSubscription[]) => {
+  const deribit = useDeribit(subscriptions);
+  const bitmex = useBitmex(subscriptions);
+  return { deribit, bitmex };
 };
 
 // const getExchangesMap = (subscriptions: TSubscription[]): Map<Exchange, TSubscription[] => {

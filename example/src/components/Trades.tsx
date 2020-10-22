@@ -7,15 +7,16 @@ import { num } from '../utils';
 
 export const Trades = ({ trades }: { trades: TTrade[] | null }) => {
   const lastRelativeTime = React.useRef<string>('');
-  if (trades == null) return <Loading />;
   return (
-    <div className="p-3">
-      {trades.map(t => {
-        const newRT = getRelativeTime(t.timestamp / 1000);
-        const hideTime = lastRelativeTime.current === newRT;
-        lastRelativeTime.current = newRT;
-        return <Trade key={t.id} trade={t} hideTime={hideTime} />;
-      })}
+    <div className="h-full p-3">
+      {trades == null && <Loading />}
+      {trades != null &&
+        trades.map(t => {
+          const newRT = getRelativeTime(t.timestamp / 1000);
+          const hideTime = lastRelativeTime.current === newRT;
+          lastRelativeTime.current = newRT;
+          return <Trade key={t.id} trade={t} hideTime={hideTime} />;
+        })}
     </div>
   );
 };
