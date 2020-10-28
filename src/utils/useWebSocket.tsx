@@ -54,10 +54,11 @@ export function useWebSocket<Res, Req = WebSocketMessage>(
 
   const processMessage = React.useCallback((res: string): Res | null => {
     const msg = JSON.parse(res);
-    if (!msg.id) return msg; // pass through
-    const pending = pendingMap.current.get(msg.id);
+    const id = msg.id || ('request' in msg && msg.request.id);
+    if (!id) return msg; // pass through
+    const pending = pendingMap.current.get(id);
     if (!pending) {
-      console.warn(`Unexpected msg id (${msg.id}) from WS:`, msg);
+      console.warn(`Unexpected msg id (${id}) from WS:`, msg);
       return msg; // pass through
     }
     pending.resolve({ ...msg });

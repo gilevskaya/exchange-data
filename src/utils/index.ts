@@ -23,11 +23,11 @@ export function syncSubscriptions<ResSubscription>({
   updateSubscriptions: (
     updChannels: string[],
     isSubcribe: boolean
-  ) => Promise<ResSubscription>;
+  ) => Promise<ResSubscription | ResSubscription[]>;
   processUpdateSubscriptionRes: (
     currSub: TWSCurrentSubscriptions,
-    subRes: ResSubscription | null,
-    unsubRes: ResSubscription | null
+    subRes: ResSubscription | ResSubscription[] | null,
+    unsubRes: ResSubscription | ResSubscription[] | null
   ) => TWSCurrentSubscriptions;
   currSubscriptions: TWSCurrentSubscriptions;
   newSubscriptions: TSubscription[];
@@ -54,7 +54,10 @@ export function syncSubscriptions<ResSubscription>({
   if (channelsToSub.size === 0 && channelsToUnsub.size === 0)
     return Promise.resolve(currSubscriptions);
 
-  const promises: Array<null | Promise<ResSubscription>> = [null, null];
+  const promises: Array<null | Promise<ResSubscription | ResSubscription[]>> = [
+    null,
+    null,
+  ];
   if (channelsToSub.size > 0) {
     promises[0] = updateSubscriptions(Array.from(channelsToSub), true);
   }

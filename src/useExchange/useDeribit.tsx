@@ -21,13 +21,6 @@ import {
 } from '../types';
 
 const WS_URL_DERIBIT = 'wss://www.deribit.com/ws/api/v2';
-// Direction of the "tick" (0 = Plus Tick, 1 = Zero-Plus Tick, 2 = Minus Tick, 3 = Zero-Minus Tick).
-const TICK_DIRECTION_MAP_DERIBIT = {
-  0: TickDirection.PLUS,
-  1: TickDirection.ZERO_PLUS,
-  2: TickDirection.MINUS,
-  3: TickDirection.ZERO_MINUS,
-};
 
 export const useDeribit = (
   subscriptions: TSubscription[] = [],
@@ -91,11 +84,13 @@ export const useDeribit = (
           return sendMessage({
             jsonrpc: '2.0',
             method: isSubcribe ? 'public/subscribe' : 'public/unsubscribe',
-            params: { channels: Array.from(updChannels) },
+            params: { channels: updChannels },
           }) as Promise<TWSMessageDeribit_Res_Subscription>;
         },
         processUpdateSubscriptionRes: (currSub, subRes, unsubRes) => {
           if (subRes) {
+            if (Array.isArray(subRes))
+              throw new Error(`Shouldn't be an array ${subRes}`);
             const { result } = subRes;
             result.forEach((subName: string) => {
               const sub = currSub.get(subName);
@@ -103,6 +98,8 @@ export const useDeribit = (
             });
           }
           if (unsubRes) {
+            if (Array.isArray(unsubRes))
+              throw new Error(`Shouldn't be an array ${unsubRes}`);
             const { result } = unsubRes;
             result.forEach((subName: string) => currSub.delete(subName));
           }
@@ -272,6 +269,13 @@ type TWSMessageDeribit_Res_Ticker = {
   };
 };
 
+// Direction of the "tick" (0 = Plus Tick, 1 = Zero-Plus Tick, 2 = Minus Tick, 3 = Zero-Minus Tick).
+const TICK_DIRECTION_MAP_DERIBIT = {
+  0: TickDirection.PLUS,
+  1: TickDirection.ZERO_PLUS,
+  2: TickDirection.MINUS,
+  3: TickDirection.ZERO_MINUS,
+};
 type TWSMessageDeribit_Res_Trades = {
   method: 'subscription';
   params: {

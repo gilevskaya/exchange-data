@@ -11,15 +11,15 @@ export enum Channel {
 }
 
 export enum Side {
-  BUY,
-  SELL,
+  BUY = 'buy',
+  SELL = 'sell',
 }
 
 export enum TickDirection {
-  PLUS,
-  ZERO_PLUS,
-  MINUS,
-  ZERO_MINUS,
+  PLUS = 'plus',
+  ZERO_PLUS = 'zero-plus',
+  MINUS = 'minus',
+  ZERO_MINUS = 'zero-minus',
 }
 
 export type TSubscription = { exchange: Exchange; instrument: string } & (

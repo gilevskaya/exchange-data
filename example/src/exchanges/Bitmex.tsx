@@ -14,7 +14,7 @@ const SUBSCRIPTIONS_BITMEX: Map<Channel, TSubscription> = new Map(
 
 export const Bitmex = () => {
   const [subscriptions, setSubscriptions] = React.useState<Set<Channel>>(
-    new Set([Channel.TRADES, Channel.TICKER])
+    new Set([Channel.TRADES])
   );
   const subscriptionsInfo = React.useMemo(
     () =>
@@ -28,19 +28,22 @@ export const Bitmex = () => {
     [subscriptions]
   );
 
-  const { readyState, trades, connect, disconnect } = useBitmex(
-    subscriptionsInfo,
-    {
-      autoConnect: false,
-      dev: {
-        connectAlert: 'Bitmex tries to connect',
-      },
-    }
-  );
+  const {
+    readyState,
+    trades,
+    connect,
+    disconnect,
+    currentSubscriptions,
+  } = useBitmex(subscriptionsInfo, {
+    autoConnect: true,
+    dev: {
+      connectAlert: 'Bitmex is trying to connect, ok?',
+    },
+  });
 
   React.useEffect(() => {
-    console.log('bitmex', trades);
-  }, [trades]);
+    console.log('Bitmex currentSubscriptions', currentSubscriptions);
+  }, [currentSubscriptions]);
 
   return (
     <>
@@ -48,12 +51,16 @@ export const Bitmex = () => {
         <ExchangeHeader
           exchange={Exchange.BITMEX}
           readyState={readyState}
-          connect={() => connect()}
-          disconnect={() => disconnect()}
+          connect={connect}
+          disconnect={disconnect}
           subcriptions={subscriptions}
-          toggleSubscription={(c: Channel) => {
-            console.log('toggle', c);
-          }}
+          toggleSubscription={(c: Channel) =>
+            setSubscriptions(ss => {
+              if (ss.has(c)) ss.delete(c);
+              else ss.add(c);
+              return new Set(ss);
+            })
+          }
         />
       </Dashboard.Item>
       <Dashboard.Item {...{ x: 0, y: 1 }}>
