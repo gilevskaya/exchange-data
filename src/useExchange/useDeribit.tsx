@@ -3,10 +3,11 @@ import React from 'react';
 
 import { useWebSocket } from '../utils/useWebSocket';
 import {
-  applyExchangeOrderBookEdits,
+  // applyExchangeOrderBookEdits,
   TOrderBook,
-  TOrderBookSide,
-} from '../utils/orderbook';
+  // TOrderBookSide,
+  getSubs,
+} from '../utils';
 import {
   Side,
   Channel,
@@ -27,17 +28,14 @@ const TICK_DIRECTION_MAP = {
 };
 const TRADES_STORE_LIMIT = 50;
 
-const getSubcriptionName = (subs: Channel, instrument: string): string =>
-  ({
-    [Channel.ORDERBOOK]: `book.${instrument}.raw`,
-    [Channel.TICKER]: `ticker.${instrument}.raw`,
-    [Channel.TRADES]: `trades.${instrument}.raw`,
-  }[subs]);
-
 export const useDeribit = (
   subscriptions: TSubscription[] = [],
   wsOptions?: TWSOptions & { url?: string }
 ) => {
+  const subs = React.useMemo(() => getDeribitSubs(subscriptions), [
+    subscriptions,
+  ]);
+
   const [orderbook, setOrderbook] = React.useState<TOrderBook | null>(null);
   const [lastPrice, setLastPrice] = React.useState<number | null>(null);
   const [trades, setTrades] = React.useState<TTrade[] | null>(null);
@@ -54,31 +52,7 @@ export const useDeribit = (
     {
       ...wsOptions,
       onOpen: async () => {
-        const subcriptionRes = (await sendMessage(
-          JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'public/subscribe',
-            params: {
-              channels: subscriptions
-                .filter(({ exchange }) => exchange === Exchange.DERIBIT)
-                .map(s => {
-                  if (s.options) {
-                    setOptions((o: any) => {
-                      // TODO:
-                      if (!o[s.instrument]) o[s.instrument] = {};
-                      o[s.instrument][s.channel] = s.options;
-                      return o;
-                    });
-                  }
-                  return getSubcriptionName(s.channel, s.instrument);
-                }),
-            },
-          })
-        )) as TWSMessageDeribit_Res_Subscription;
-        subcriptionRes.result.forEach(s => {
-          if (s.startsWith('trades.')) setTrades([]);
-        });
-
+        subscribe(subscriptions);
         // Get the heartbeat going
         await sendMessage({
           jsonrpc: '2.0',
@@ -87,94 +61,218 @@ export const useDeribit = (
             interval: 60,
           },
         });
+        if (wsOptions?.onOpen) wsOptions.onOpen();
       },
       onClose: () => {
         setOrderbook(null);
         setLastPrice(null);
         setTrades(null);
+        if (wsOptions?.onClose) wsOptions.onClose();
       },
     }
   );
 
+  const subscribe = React.useCallback(
+    (ss: TSubscription[]) => {
+      const channels = ss
+        .filter(s => s.exchange === Exchange.DERIBIT)
+        .map(({ channel, instrument, options }) => {
+          if (options) {
+            // TODO: do the options stuff
+            setOptions((o: any) => {
+              // TODO:
+              if (!o[instrument]) o[instrument] = {};
+              o[instrument][channel] = options;
+              return o;
+            });
+          }
+          return getSubcriptionName(channel, instrument);
+        });
+
+      sendMessage({
+        jsonrpc: '2.0',
+        method: 'public/subscribe',
+        params: { channels },
+      });
+      // subcriptionRes.result.forEach(s => {
+      //   if (s.startsWith('trades.')) setTrades([]);
+      // });
+    },
+    [sendMessage]
+  );
+
+  React.useEffect(() => {
+    console.log('process deribit subscription change', subs);
+  }, [subs]);
+
   React.useEffect(() => {
     if (!lastMessage) return;
+    processDeribitMessage(lastMessage, options, {
+      sendMessageHeartbeat: () =>
+        sendMessage({
+          method: 'public/ping',
+          params: {},
+          jsonrpc: '2.0',
+        }),
+      setTrades,
+    });
+    // const [type, instrument] = lastMessage.params.channel.split('.');
+    // const option = options[instrument] && options[instrument][type];
 
-    // Reply to the heartbeat request
-    if (isHeartbeatTrigger(lastMessage)) {
-      sendMessage({
-        method: 'public/ping',
-        params: {},
-        jsonrpc: '2.0',
-      });
-      return;
-    }
-    if (!isDataResponse(lastMessage)) return;
+    // switch (type) {
+    //   case 'book': {
+    //     const {
+    //       bids,
+    //       asks,
+    //       change_id: id,
+    //     } = (lastMessage as TWSMessageDeribit_Res_Orderbook).params.data;
 
-    const [type, instrument] = lastMessage.params.channel.split('.');
-    const option = options[instrument] && options[instrument][type];
+    //     const mapEditFormat = (edit: TDeribitOrderBookEdit) => {
+    //       const [, price, size] = edit;
+    //       return { id, price, size };
+    //     };
 
-    switch (type) {
-      case 'book': {
-        const {
-          bids,
-          asks,
-          change_id: id,
-        } = (lastMessage as TWSMessageDeribit_Res_Orderbook).params.data;
-
-        const mapEditFormat = (edit: TDeribitOrderBookEdit) => {
-          const [, price, size] = edit;
-          return { id, price, size };
-        };
-
-        setOrderbook(ob =>
-          applyExchangeOrderBookEdits(ob, [
-            ...asks.map(edit => ({
-              side: TOrderBookSide.ASKS,
-              edit: mapEditFormat(edit),
-            })),
-            ...bids.map(edit => ({
-              side: TOrderBookSide.BIDS,
-              edit: mapEditFormat(edit),
-            })),
-          ])
-        );
-        break;
-      }
-      case 'ticker': {
-        setLastPrice(
-          (lastMessage as TWSMessageDeribit_Res_Ticker).params.data.last_price
-        );
-        break;
-      }
-      case 'trades': {
-        const newTrades = (lastMessage as TWSMessageDeribit_Res_Trades).params.data.map(
-          d => ({
-            id: d.trade_id,
-            size: d.amount,
-            side: d.direction === 'buy' ? Side.BUY : Side.SELL,
-            price: d.price,
-            timestamp: d.timestamp,
-            tickDirection: TICK_DIRECTION_MAP[d.tick_direction],
-          })
-        );
-        setTrades(ts => {
-          if (ts === null) ts = [];
-          const upd = [...newTrades, ...ts];
-          if (upd.length > option?.limit || TRADES_STORE_LIMIT) {
-            return upd.slice(0, option?.limit || TRADES_STORE_LIMIT);
-          } else return upd;
-        });
-        break;
-      }
-      default: {
-        console.log('deribit', lastMessage);
-      }
-    }
+    //     setOrderbook(ob =>
+    //       applyExchangeOrderBookEdits(ob, [
+    //         ...asks.map(edit => ({
+    //           side: TOrderBookSide.ASKS,
+    //           edit: mapEditFormat(edit),
+    //         })),
+    //         ...bids.map(edit => ({
+    //           side: TOrderBookSide.BIDS,
+    //           edit: mapEditFormat(edit),
+    //         })),
+    //       ])
+    //     );
+    //     break;
+    //   }
+    //   case 'ticker': {
+    //     setLastPrice(
+    //       (lastMessage as TWSMessageDeribit_Res_Ticker).params.data.last_price
+    //     );
+    //     break;
+    //   }
+    //   case 'trades': {
+    //     const newTrades = (lastMessage as TWSMessageDeribit_Res_Trades).params.data.map(
+    //       d => ({
+    //         id: d.trade_id,
+    //         size: d.amount,
+    //         side: d.direction === 'buy' ? Side.BUY : Side.SELL,
+    //         price: d.price,
+    //         timestamp: d.timestamp,
+    //         tickDirection: TICK_DIRECTION_MAP[d.tick_direction],
+    //       })
+    //     );
+    //     setTrades(ts => {
+    //       if (ts === null) ts = [];
+    //       const upd = [...newTrades, ...ts];
+    //       if (upd.length > option?.limit || TRADES_STORE_LIMIT) {
+    //         return upd.slice(0, option?.limit || TRADES_STORE_LIMIT);
+    //       } else return upd;
+    //     });
+    //     break;
+    //   }
+    //   default: {
+    //     console.log('deribit', lastMessage);
+    //   }
+    // }
   }, [sendMessage, lastMessage, options]);
 
   return { readyState, orderbook, lastPrice, trades, connect, disconnect };
 };
 
+// Helper functions
+
+const getDeribitSubs = getSubs(Exchange.DERIBIT);
+const getSubcriptionName = (subs: Channel, instrument: string): string =>
+  ({
+    [Channel.ORDERBOOK]: `book.${instrument}.raw`,
+    [Channel.TICKER]: `ticker.${instrument}.raw`,
+    [Channel.TRADES]: `trades.${instrument}.raw`,
+  }[subs]);
+
+function processDeribitMessage(
+  msg: TWSMessageDeribit_Res,
+  options: any,
+  actions: {
+    sendMessageHeartbeat: Function;
+    setTrades: any;
+  }
+) {
+  if ('method' in msg && msg.method === 'heartbeat') {
+    actions.sendMessageHeartbeat();
+    return;
+  }
+  // is not hearbit has to be a subscription data message
+  msg = msg as TWSMessageDeribit_Res_Data;
+  if (!msg.params.data) {
+    console.log('should not happen', msg);
+    return;
+  }
+  // console.log('msg', msg);
+  const [type, instrument] = msg.params.channel.split('.');
+  const option = options[instrument] && options[instrument][type];
+
+  switch (type) {
+    case 'book': {
+      // const {
+      //   bids,
+      //   asks,
+      //   change_id: id,
+      // } = (lastMessage as TWSMessageDeribit_Res_Orderbook).params.data;
+
+      // const mapEditFormat = (edit: TDeribitOrderBookEdit) => {
+      //   const [, price, size] = edit;
+      //   return { id, price, size };
+      // };
+
+      // setOrderbook(ob =>
+      //   applyExchangeOrderBookEdits(ob, [
+      //     ...asks.map(edit => ({
+      //       side: TOrderBookSide.ASKS,
+      //       edit: mapEditFormat(edit),
+      //     })),
+      //     ...bids.map(edit => ({
+      //       side: TOrderBookSide.BIDS,
+      //       edit: mapEditFormat(edit),
+      //     })),
+      //   ])
+      // );
+      break;
+    }
+    case 'ticker': {
+      // setLastPrice(
+      //   (lastMessage as TWSMessageDeribit_Res_Ticker).params.data.last_price
+      // );
+      break;
+    }
+    case 'trades': {
+      const newTrades = (msg as TWSMessageDeribit_Res_Trades).params.data.map(
+        d => ({
+          id: d.trade_id,
+          size: d.amount,
+          side: d.direction === 'buy' ? Side.BUY : Side.SELL,
+          price: d.price,
+          timestamp: d.timestamp,
+          tickDirection: TICK_DIRECTION_MAP[d.tick_direction],
+        })
+      );
+      actions.setTrades((ts: TTrade[] | null) => {
+        if (ts === null) ts = [];
+        const upd = [...newTrades, ...ts];
+        if (upd.length > option?.limit || TRADES_STORE_LIMIT) {
+          return upd.slice(0, option?.limit || TRADES_STORE_LIMIT);
+        } else return upd;
+      });
+      break;
+    }
+    default: {
+      console.log('deribit msg', msg);
+    }
+  }
+}
+
+////////////
 // Types
 
 type TWSMessageDeribit_Res_Subscription = {
@@ -182,7 +280,7 @@ type TWSMessageDeribit_Res_Subscription = {
 };
 type TWSMessageDeribit_Req_Subscription = {
   jsonrpc: '2.0';
-  method: 'public/subscribe';
+  method: 'public/subscribe' | 'public/unsubscribe';
   params: { channels: string[] };
 };
 
@@ -192,6 +290,7 @@ export type TDeribitOrderBookEdit = [
   number
 ]; // type, price, size
 type TWSMessageDeribit_Res_Orderbook = {
+  method: 'subscription';
   params: {
     channel: string; // "book.BTC-PERPETUAL.raw";
     data: {
@@ -203,6 +302,7 @@ type TWSMessageDeribit_Res_Orderbook = {
 };
 
 type TWSMessageDeribit_Res_Ticker = {
+  method: 'subscription';
   params: {
     channel: string; // "ticker.BTC-PERPETUAL.raw";
     data: {
@@ -214,6 +314,7 @@ type TWSMessageDeribit_Res_Ticker = {
 };
 
 type TWSMessageDeribit_Res_Trades = {
+  method: 'subscription';
   params: {
     channel: string; // "trades.BTC-PERPETUAL.raw";
     data: Array<{
@@ -267,24 +368,6 @@ type TWSMessageDeribit_Res_Heartbeat = {
     type: 'test_request';
   };
 };
-
-function isDataResponse(
-  message: object
-): message is TWSMessageDeribit_Res_Data {
-  const m = message as TWSMessageDeribit_Res_Data;
-  return Boolean(m.params.data);
-}
-
-function isHeartbeatTrigger(
-  message: object
-): message is TWSMessageDeribit_Res_Heartbeat {
-  const m = message as TWSMessageDeribit_Res_Heartbeat;
-  return (
-    m.jsonrpc === '2.0' &&
-    m.method === 'heartbeat' &&
-    m.params?.type === 'test_request'
-  );
-}
 
 type TWSMessageDeribit_Res =
   | TWSMessageDeribit_Res_Pong

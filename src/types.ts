@@ -42,6 +42,8 @@ export type TTrade = {
   tickDirection: TickDirection; // tick_direction
 };
 
+// useWebSocket types
+
 export type TWSOptions = {
   onOpen?: Function;
   onClose?: Function;
@@ -50,3 +52,5 @@ export type TWSOptions = {
   shouldReconnect?: boolean;
   dev?: { connectAlert?: string };
 };
+
+export type TWSSendMessage<Res, Req> = (req: Req | string) => Promise<Res>;

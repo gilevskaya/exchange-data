@@ -11,7 +11,7 @@ export const Exchanges = () => {
   return (
     <div className="h-screen" style={{ padding: SPACE }}>
       <Dashboard columns={3} rows={3} gap={SPACE} rowsHeight={{ 0: '1.6rem' }}>
-        {/* <Bitmex /> */}
+        <Bitmex />
         <Deribit />
         {/* <Binance /> */}
       </Dashboard>

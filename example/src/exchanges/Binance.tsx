@@ -1,7 +1,7 @@
 import * as React from 'react';
 import Dashboard from 'react-grid-dashboard';
 
-import { Exchange, ReadyState } from '../../../dist';
+import { Exchange, ReadyState, Channel } from '../../../dist';
 import { Widget, ExchangeHeader } from '../components/Widget';
 
 export const Binance = () => {
@@ -13,6 +13,10 @@ export const Binance = () => {
           readyState={ReadyState.UNINITIATED}
           connect={() => {}}
           disconnect={() => {}}
+          subcriptions={new Set()}
+          toggleSubscription={(c: Channel) => {
+            console.log('toggle', c);
+          }}
         />
       </Dashboard.Item>
       <Dashboard.Item {...{ x: 2, y: 1 }}>

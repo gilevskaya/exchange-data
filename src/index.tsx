@@ -11,4 +11,5 @@ export {
   TTrade,
   TSubscription,
   TWSOptions,
+  TWSSendMessage,
 } from './types';
