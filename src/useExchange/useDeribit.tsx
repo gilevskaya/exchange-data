@@ -6,6 +6,8 @@ import {
   // applyExchangeOrderBookEdits,
   TOrderBook,
   // TOrderBookSide,
+  syncSubscriptions,
+  TSyncSubscriptionsArgs_Exchange,
 } from '../utils';
 import {
   Side,
@@ -13,9 +15,9 @@ import {
   TSubscription,
   TickDirection,
   TTrade,
-  Exchange,
   TWSOptions,
   TWSCurrentSubscriptions,
+  Exchange,
 } from '../types';
 
 const WS_URL_DERIBIT = 'wss://www.deribit.com/ws/api/v2';
@@ -51,11 +53,11 @@ export const useDeribit = (
     wsOptions?.url || WS_URL_DERIBIT,
     {
       ...wsOptions,
-      onOpen: async () => {
+      onOpen: () => {
         // subscribe first
-        await syncSubscribtions(subscriptions);
+        syncDeribitSubscriptions(currentSubscriptions, subscriptions);
         // then get the heartbeat going
-        await sendMessage({
+        sendMessage({
           jsonrpc: '2.0',
           method: 'public/set_heartbeat',
           params: {
@@ -73,73 +75,48 @@ export const useDeribit = (
     }
   );
 
-  // setOptions((o: any) => {
-  //   // TODO:
-  //   if (!o[instrument]) o[instrument] = {};
-  //   o[instrument][channel] = options;
-  //   return o;
-  // });
-
-  const syncSubscribtions = React.useCallback(
-    async (ss: TSubscription[]): Promise<void> => {
-      const updCurrent = new Map(currentSubscriptions);
-      const channelsToSubscribe: Set<string> = new Set();
-      const channelsToUnsibscribe: Set<string> = new Set();
-      updCurrent.forEach((_, k) => channelsToUnsibscribe.add(k));
-
-      ss.filter(s => s.exchange === Exchange.DERIBIT).forEach(s => {
-        const { channel, instrument } = s;
-        const subName = getDeribitSubcriptionName(channel, instrument);
-        const subInfo = updCurrent.get(subName);
-        if (subInfo) {
-          channelsToUnsibscribe.delete(subName);
-        } else {
-          channelsToSubscribe.add(subName);
-          updCurrent.set(subName, { info: s, status: 'subscribing' });
-        }
-      });
-
-      if (channelsToSubscribe.size === 0 && channelsToUnsibscribe.size === 0)
-        return;
-
-      const promises: Array<null | Promise<TWSMessageDeribit_Res>> = [
-        null,
-        null,
-      ];
-      if (channelsToSubscribe.size > 0) {
-        promises[0] = sendMessage({
+  const deribitSubscriptionArgs = React.useMemo<
+    TSyncSubscriptionsArgs_Exchange
+  >(
+    () => ({
+      exchange: Exchange.DERIBIT,
+      getName: getDeribitSubcriptionName,
+      subcribe: (channelsToSubscribe: string[]) => {
+        return sendMessage({
           jsonrpc: '2.0',
           method: 'public/subscribe',
           params: { channels: Array.from(channelsToSubscribe) },
-        });
-      }
-      if (channelsToUnsibscribe.size > 0) {
-        promises[1] = sendMessage({
+        }) as Promise<TWSMessageDeribit_Res_Subscription>;
+      },
+      unsubscribe: (channelsToUnsubscribe: string[]) => {
+        return sendMessage({
           jsonrpc: '2.0',
           method: 'public/unsubscribe',
-          params: { channels: Array.from(channelsToUnsibscribe) },
-        });
-      }
-      Promise.all(promises).then(([subRes, unsubRes]) => {
-        if (subRes) {
-          const { result } = subRes as TWSMessageDeribit_Res_Subscription;
-          result.forEach(subName => {
-            const sub = updCurrent.get(subName);
-            if (sub) updCurrent.set(subName, { ...sub, status: 'subscribed' });
-          });
-        }
-        if (unsubRes) {
-          const { result } = unsubRes as TWSMessageDeribit_Res_Subscription;
-          result.forEach(subName => updCurrent.delete(subName));
-        }
-        setCurrentSubscriptions(updCurrent);
-      });
+          params: { channels: Array.from(channelsToUnsubscribe) },
+        }) as Promise<TWSMessageDeribit_Res_Subscription>;
+      },
+    }),
+    [sendMessage]
+  );
+
+  const syncDeribitSubscriptions = React.useCallback(
+    (
+      currSubscriptions: TWSCurrentSubscriptions,
+      newSubscriptions: TSubscription[]
+    ) => {
+      syncSubscriptions({
+        ...deribitSubscriptionArgs,
+        currentSubscriptions: currSubscriptions,
+        newSubscriptions,
+      }).then(setCurrentSubscriptions);
     },
-    [sendMessage, currentSubscriptions]
+    [deribitSubscriptionArgs]
   );
 
   React.useEffect(() => {
-    if (readyState === ReadyState.OPEN) syncSubscribtions(subscriptions);
+    if (readyState !== ReadyState.OPEN) return;
+    syncDeribitSubscriptions(currentSubscriptions, subscriptions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscriptions]);
 
   React.useEffect(() => {
@@ -153,66 +130,6 @@ export const useDeribit = (
         }),
       setTrades,
     });
-    // const [type, instrument] = lastMessage.params.channel.split('.');
-    // const option = options[instrument] && options[instrument][type];
-
-    // switch (type) {
-    //   case 'book': {
-    //     const {
-    //       bids,
-    //       asks,
-    //       change_id: id,
-    //     } = (lastMessage as TWSMessageDeribit_Res_Orderbook).params.data;
-
-    //     const mapEditFormat = (edit: TDeribitOrderBookEdit) => {
-    //       const [, price, size] = edit;
-    //       return { id, price, size };
-    //     };
-
-    //     setOrderbook(ob =>
-    //       applyExchangeOrderBookEdits(ob, [
-    //         ...asks.map(edit => ({
-    //           side: TOrderBookSide.ASKS,
-    //           edit: mapEditFormat(edit),
-    //         })),
-    //         ...bids.map(edit => ({
-    //           side: TOrderBookSide.BIDS,
-    //           edit: mapEditFormat(edit),
-    //         })),
-    //       ])
-    //     );
-    //     break;
-    //   }
-    //   case 'ticker': {
-    //     setLastPrice(
-    //       (lastMessage as TWSMessageDeribit_Res_Ticker).params.data.last_price
-    //     );
-    //     break;
-    //   }
-    //   case 'trades': {
-    //     const newTrades = (lastMessage as TWSMessageDeribit_Res_Trades).params.data.map(
-    //       d => ({
-    //         id: d.trade_id,
-    //         size: d.amount,
-    //         side: d.direction === 'buy' ? Side.BUY : Side.SELL,
-    //         price: d.price,
-    //         timestamp: d.timestamp,
-    //         tickDirection: TICK_DIRECTION_MAP[d.tick_direction],
-    //       })
-    //     );
-    //     setTrades(ts => {
-    //       if (ts === null) ts = [];
-    //       const upd = [...newTrades, ...ts];
-    //       if (upd.length > option?.limit || TRADES_STORE_LIMIT) {
-    //         return upd.slice(0, option?.limit || TRADES_STORE_LIMIT);
-    //       } else return upd;
-    //     });
-    //     break;
-    //   }
-    //   default: {
-    //     console.log('deribit', lastMessage);
-    //   }
-    // }
   }, [sendMessage, lastMessage, options]);
 
   return {
@@ -226,6 +143,7 @@ export const useDeribit = (
   };
 };
 
+//////////////////////////////////
 // Helper functions
 
 const getDeribitSubcriptionName = (subs: Channel, instrument: string): string =>
@@ -316,10 +234,10 @@ function processDeribitMessage(
   }
 }
 
-////////////
+//////////////////////////////////
 // Types
 
-type TWSMessageDeribit_Res_Subscription = {
+export type TWSMessageDeribit_Res_Subscription = {
   result: string[];
 };
 type TWSMessageDeribit_Req_Subscription = {

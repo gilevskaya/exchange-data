@@ -14,7 +14,7 @@ const SUBSCRIPTIONS_DERIBIT: Map<Channel, TSubscription> = new Map(
 
 export const Deribit = () => {
   const [subscriptions, setSubscriptions] = React.useState<Set<Channel>>(
-    new Set([Channel.TRADES, Channel.TICKER])
+    new Set([Channel.TICKER, Channel.TRADES])
   );
   const subscriptionsInfo = React.useMemo(
     () =>
@@ -35,15 +35,15 @@ export const Deribit = () => {
     disconnect,
     currentSubscriptions,
   } = useDeribit(subscriptionsInfo, {
-    url: 'wss://test.deribit.com/ws/api/v2',
-    autoConnect: true,
+    // url: 'wss://test.deribit.com/ws/api/v2',
+    autoConnect: false,
     dev: {
-      connectAlert: 'Deribit tries to connect',
+      connectAlert: 'Deribit trying to connect',
     },
   });
 
   React.useEffect(() => {
-    console.log('Deribit', currentSubscriptions);
+    console.log('Deribit currentSubscriptions', currentSubscriptions);
   }, [currentSubscriptions]);
 
   return (

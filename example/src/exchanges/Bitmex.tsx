@@ -16,24 +16,40 @@ export const Bitmex = () => {
   const [subscriptions, setSubscriptions] = React.useState<Set<Channel>>(
     new Set([Channel.TRADES, Channel.TICKER])
   );
-  const { readyState, trades } = useBitmex([], {
-    autoConnect: false,
-    dev: {
-      connectAlert: 'Deribit tries to connect',
-    },
-  });
+  const subscriptionsInfo = React.useMemo(
+    () =>
+      Array.from(subscriptions)
+        .map(c => {
+          const s = SUBSCRIPTIONS_BITMEX.get(c);
+          if (!s) throw new Error(`Can't find subscription info for ${c}`);
+          return s;
+        })
+        .filter(s => s),
+    [subscriptions]
+  );
+
+  const { readyState, trades, connect, disconnect } = useBitmex(
+    subscriptionsInfo,
+    {
+      autoConnect: false,
+      dev: {
+        connectAlert: 'Bitmex tries to connect',
+      },
+    }
+  );
 
   React.useEffect(() => {
     console.log('bitmex', trades);
   }, [trades]);
+
   return (
     <>
       <Dashboard.Item {...{ x: 0 }}>
         <ExchangeHeader
           exchange={Exchange.BITMEX}
           readyState={readyState}
-          connect={() => {}}
-          disconnect={() => {}}
+          connect={() => connect()}
+          disconnect={() => disconnect()}
           subcriptions={subscriptions}
           toggleSubscription={(c: Channel) => {
             console.log('toggle', c);
