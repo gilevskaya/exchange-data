@@ -16,20 +16,7 @@ import './tailwind.output.css';
 
 const App = () => {
   if (window.location.pathname === '/manual') return <Manual />;
-  if (window.location.pathname === '/deribit')
-    return (
-      <div
-        style={{
-          fontFamily: 'sans-serif',
-          padding: '1rem',
-          height: '100vh',
-          background: '#222',
-          color: '#eee',
-        }}
-      >
-        <Deribit />
-      </div>
-    );
+  if (window.location.pathname === '/deribit') return <Deribit />;
   return <Exchanges />;
 };
 
@@ -54,7 +41,15 @@ const Deribit = () => {
     [Exchange.DERIBIT]: { readyState, lastPrice, trades },
   } = useExchange(SUBSCRIPTIONS);
   return (
-    <div>
+    <div
+      style={{
+        fontFamily: 'sans-serif',
+        padding: '1rem',
+        height: '100vh',
+        background: '#222',
+        color: '#eee',
+      }}
+    >
       <div>Deribit [{ReadyState[readyState]}]</div>
       <div>Last price: {lastPrice}</div>
       {trades == null && <div>Loading trades...</div>}

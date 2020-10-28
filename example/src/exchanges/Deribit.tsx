@@ -1,7 +1,7 @@
 import * as React from 'react';
 import Dashboard from 'react-grid-dashboard';
 
-import { useExchange, Exchange, Channel, TSubscription } from '../../../dist';
+import { Exchange, Channel, TSubscription, useDeribit } from '../../../dist';
 import { Widget, ExchangeHeader } from '../components/Widget';
 import { Trades } from '../components/Trades';
 
@@ -22,14 +22,31 @@ const SUBSCRIPTIONS: TSubscription[] = [
 ];
 
 export const Deribit = () => {
-  const {
-    [Exchange.DERIBIT]: { readyState, trades },
-  } = useExchange(SUBSCRIPTIONS);
+  const { readyState, trades, orderbook, connect, disconnect } = useDeribit(
+    SUBSCRIPTIONS,
+    {
+      url: 'wss://test.deribit.com/ws/api/v2',
+      manualConnect: true,
+      shouldReconnect: false,
+      dev: {
+        connectAlert: 'Deribit tries to connect',
+      },
+    }
+  );
+
+  React.useEffect(() => {
+    console.log({ trades });
+  }, [trades]);
 
   return (
     <>
       <Dashboard.Item {...{ x: 1 }}>
-        <ExchangeHeader exchange={Exchange.DERIBIT} readyState={readyState} />
+        <ExchangeHeader
+          exchange={Exchange.DERIBIT}
+          readyState={readyState}
+          connect={connect}
+          disconnect={disconnect}
+        />
       </Dashboard.Item>
       <Dashboard.Item {...{ x: 1, y: 1 }}>
         <Widget isFull={true}>

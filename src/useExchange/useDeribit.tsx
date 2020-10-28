@@ -14,6 +14,7 @@ import {
   TickDirection,
   TTrade,
   Exchange,
+  TWSOptions,
 } from '../types';
 
 const WS_URL_DERIBIT = 'wss://www.deribit.com/ws/api/v2';
@@ -33,58 +34,67 @@ const getSubcriptionName = (subs: Channel, instrument: string): string =>
     [Channel.TRADES]: `trades.${instrument}.raw`,
   }[subs]);
 
-export const useDeribit = (subscriptions: TSubscription[] = []) => {
+export const useDeribit = (
+  subscriptions: TSubscription[] = [],
+  wsOptions?: TWSOptions & { url?: string }
+) => {
   const [orderbook, setOrderbook] = React.useState<TOrderBook | null>(null);
   const [lastPrice, setLastPrice] = React.useState<number | null>(null);
   const [trades, setTrades] = React.useState<TTrade[] | null>(null);
   const [options, setOptions] = React.useState<any>({}); // TODO: types
 
-  const { readyState, lastMessage, sendMessage } = useWebSocket<
-    TWSMessageDeribit_Res,
-    TWSMessageDeribit_Req
-  >(WS_URL_DERIBIT, {
-    shouldReconnect: true,
-    onOpen: async () => {
-      const subcriptionRes = (await sendMessage(
-        JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'public/subscribe',
-          params: {
-            channels: subscriptions
-              .filter(({ exchange }) => exchange === Exchange.DERIBIT)
-              .map(s => {
-                if (s.options) {
-                  setOptions((o: any) => {
-                    // TODO:
-                    if (!o[s.instrument]) o[s.instrument] = {};
-                    o[s.instrument][s.channel] = s.options;
-                    return o;
-                  });
-                }
-                return getSubcriptionName(s.channel, s.instrument);
-              }),
-          },
-        })
-      )) as TWSMessageDeribit_Res_Subscription;
-      subcriptionRes.result.forEach(s => {
-        if (s.startsWith('trades.')) setTrades([]);
-      });
+  const {
+    readyState,
+    lastMessage,
+    sendMessage,
+    connect,
+    disconnect,
+  } = useWebSocket<TWSMessageDeribit_Res, TWSMessageDeribit_Req>(
+    wsOptions?.url || WS_URL_DERIBIT,
+    {
+      ...wsOptions,
+      onOpen: async () => {
+        const subcriptionRes = (await sendMessage(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'public/subscribe',
+            params: {
+              channels: subscriptions
+                .filter(({ exchange }) => exchange === Exchange.DERIBIT)
+                .map(s => {
+                  if (s.options) {
+                    setOptions((o: any) => {
+                      // TODO:
+                      if (!o[s.instrument]) o[s.instrument] = {};
+                      o[s.instrument][s.channel] = s.options;
+                      return o;
+                    });
+                  }
+                  return getSubcriptionName(s.channel, s.instrument);
+                }),
+            },
+          })
+        )) as TWSMessageDeribit_Res_Subscription;
+        subcriptionRes.result.forEach(s => {
+          if (s.startsWith('trades.')) setTrades([]);
+        });
 
-      // Get the heartbeat going
-      await sendMessage({
-        jsonrpc: '2.0',
-        method: 'public/set_heartbeat',
-        params: {
-          interval: 60,
-        },
-      });
-    },
-    onClose: () => {
-      setOrderbook(null);
-      setLastPrice(null);
-      setTrades(null);
-    },
-  });
+        // Get the heartbeat going
+        await sendMessage({
+          jsonrpc: '2.0',
+          method: 'public/set_heartbeat',
+          params: {
+            interval: 60,
+          },
+        });
+      },
+      onClose: () => {
+        setOrderbook(null);
+        setLastPrice(null);
+        setTrades(null);
+      },
+    }
+  );
 
   React.useEffect(() => {
     if (!lastMessage) return;
@@ -162,7 +172,7 @@ export const useDeribit = (subscriptions: TSubscription[] = []) => {
     }
   }, [sendMessage, lastMessage, options]);
 
-  return { readyState, orderbook, lastPrice, trades };
+  return { readyState, orderbook, lastPrice, trades, connect, disconnect };
 };
 
 // Types

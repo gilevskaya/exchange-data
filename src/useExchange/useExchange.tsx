@@ -1,17 +1,12 @@
-import { TSubscription } from '../types';
-import { useDeribit } from './deribit';
-import { useBitmex } from './bitmex';
+import { TSubscription, TWSOptions } from '../types';
+import { useDeribit } from './useDeribit';
+import { useBitmex } from './useBitmex';
 
-export const useExchange = (subscriptions: TSubscription[]) => {
-  const deribit = useDeribit(subscriptions);
-  const bitmex = useBitmex(subscriptions);
+export const useExchange = (
+  subscriptions: TSubscription[],
+  wsOptions?: TWSOptions
+) => {
+  const deribit = useDeribit(subscriptions, wsOptions);
+  const bitmex = useBitmex(subscriptions, wsOptions);
   return { deribit, bitmex };
 };
-
-// const getExchangesMap = (subscriptions: TSubscription[]): Map<Exchange, TSubscription[] => {
-//   return subscriptions.reduce((acc, s) => {
-//     const curr = acc.get(s.exchange) || [];
-//     acc.set(s.exchange, [...curr, s]);
-//     return acc;
-//   }, new Map())
-// }

@@ -41,3 +41,12 @@ export type TTrade = {
   timestamp: number;
   tickDirection: TickDirection; // tick_direction
 };
+
+export type TWSOptions = {
+  onOpen?: Function;
+  onClose?: Function;
+  onError?: Function;
+  manualConnect?: boolean;
+  shouldReconnect?: boolean;
+  dev?: { connectAlert?: string };
+};

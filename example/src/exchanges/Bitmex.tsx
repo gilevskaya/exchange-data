@@ -24,7 +24,7 @@ const SUBSCRIPTIONS: TSubscription[] = [
 export const Bitmex = () => {
   const {
     [Exchange.BITMEX]: { readyState, trades },
-  } = useExchange(SUBSCRIPTIONS);
+  } = useExchange([]);
 
   React.useEffect(() => {
     console.log('bitmex', trades);
@@ -32,7 +32,12 @@ export const Bitmex = () => {
   return (
     <>
       <Dashboard.Item {...{ x: 0 }}>
-        <ExchangeHeader exchange={Exchange.BITMEX} readyState={readyState} />
+        <ExchangeHeader
+          exchange={Exchange.BITMEX}
+          readyState={readyState}
+          connect={() => {}}
+          disconnect={() => {}}
+        />
       </Dashboard.Item>
       <Dashboard.Item {...{ x: 0, y: 1 }}>
         <Widget isFull={true}>

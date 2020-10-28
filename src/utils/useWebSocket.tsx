@@ -1,6 +1,8 @@
 import React from 'react';
 import { nanoid } from 'nanoid';
 
+import { TWSOptions } from '../types';
+
 export enum ReadyState {
   CONNECTING = WebSocket.CONNECTING,
   OPEN = WebSocket.OPEN,
@@ -19,13 +21,7 @@ export type WebSocketMessage =
 
 export function useWebSocket<Res, Req = WebSocketMessage>(
   url: string,
-  options?: {
-    onOpen?: Function;
-    onClose?: Function;
-    onError?: Function;
-    manualConnect?: boolean;
-    shouldReconnect?: boolean;
-  }
+  options?: TWSOptions
 ) {
   const ws = React.useRef<WebSocket | null>(null);
   const [lastMessage, setLastMessage] = React.useState<Res | null>(null);
@@ -69,6 +65,7 @@ export function useWebSocket<Res, Req = WebSocketMessage>(
   }, []);
 
   const connect = React.useCallback((): Promise<boolean> => {
+    if (options?.dev?.connectAlert) window.alert(options.dev.connectAlert);
     return new Promise(resolve => {
       if (ws.current?.readyState === WebSocket.OPEN) {
         return resolve(false);

@@ -11,6 +11,8 @@ export const Binance = () => {
         <ExchangeHeader
           exchange={Exchange.BINANCE}
           readyState={ReadyState.UNINITIATED}
+          connect={() => {}}
+          disconnect={() => {}}
         />
       </Dashboard.Item>
       <Dashboard.Item {...{ x: 2, y: 1 }}>
