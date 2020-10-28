@@ -36,9 +36,9 @@ export const Deribit = () => {
     currentSubscriptions,
   } = useDeribit(subscriptionsInfo, {
     // url: 'wss://test.deribit.com/ws/api/v2',
-    autoConnect: false,
+    autoConnect: true,
     dev: {
-      connectAlert: 'Deribit trying to connect',
+      connectAlert: 'Deribit is trying to connect, ok?',
     },
   });
 

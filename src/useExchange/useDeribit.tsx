@@ -3,11 +3,11 @@ import React from 'react';
 
 import { ReadyState, useWebSocket } from '../utils/useWebSocket';
 import {
+  TRADES_STORE_LIMIT,
   // applyExchangeOrderBookEdits,
   TOrderBook,
   // TOrderBookSide,
   syncSubscriptions,
-  TSyncSubscriptionsArgs_Exchange,
 } from '../utils';
 import {
   Side,
@@ -22,13 +22,12 @@ import {
 
 const WS_URL_DERIBIT = 'wss://www.deribit.com/ws/api/v2';
 // Direction of the "tick" (0 = Plus Tick, 1 = Zero-Plus Tick, 2 = Minus Tick, 3 = Zero-Minus Tick).
-const TICK_DIRECTION_MAP = {
+const TICK_DIRECTION_MAP_DERIBIT = {
   0: TickDirection.PLUS,
   1: TickDirection.ZERO_PLUS,
   2: TickDirection.MINUS,
   3: TickDirection.ZERO_MINUS,
 };
-const TRADES_STORE_LIMIT = 50;
 
 export const useDeribit = (
   subscriptions: TSubscription[] = [],
@@ -75,42 +74,45 @@ export const useDeribit = (
     }
   );
 
-  const deribitSubscriptionArgs = React.useMemo<
-    TSyncSubscriptionsArgs_Exchange
-  >(
-    () => ({
-      exchange: Exchange.DERIBIT,
-      getName: getDeribitSubcriptionName,
-      subcribe: (channelsToSubscribe: string[]) => {
-        return sendMessage({
-          jsonrpc: '2.0',
-          method: 'public/subscribe',
-          params: { channels: Array.from(channelsToSubscribe) },
-        }) as Promise<TWSMessageDeribit_Res_Subscription>;
-      },
-      unsubscribe: (channelsToUnsubscribe: string[]) => {
-        return sendMessage({
-          jsonrpc: '2.0',
-          method: 'public/unsubscribe',
-          params: { channels: Array.from(channelsToUnsubscribe) },
-        }) as Promise<TWSMessageDeribit_Res_Subscription>;
-      },
-    }),
-    [sendMessage]
-  );
-
   const syncDeribitSubscriptions = React.useCallback(
     (
       currSubscriptions: TWSCurrentSubscriptions,
       newSubscriptions: TSubscription[]
     ) => {
-      syncSubscriptions({
-        ...deribitSubscriptionArgs,
-        currentSubscriptions: currSubscriptions,
+      syncSubscriptions<TWSMessageDeribit_Res_Subscription>({
+        exchange: Exchange.DERIBIT,
+        getSubscriptionName: (subs, instrument) =>
+          ({
+            [Channel.ORDERBOOK]: `book.${instrument}.raw`,
+            [Channel.TICKER]: `ticker.${instrument}.raw`,
+            [Channel.TRADES]: `trades.${instrument}.raw`,
+          }[subs]),
+        updateSubscriptions: (updChannels, isSubcribe) => {
+          return sendMessage({
+            jsonrpc: '2.0',
+            method: isSubcribe ? 'public/subscribe' : 'public/unsubscribe',
+            params: { channels: Array.from(updChannels) },
+          }) as Promise<TWSMessageDeribit_Res_Subscription>;
+        },
+        processUpdateSubscriptionRes: (currSub, subRes, unsubRes) => {
+          if (subRes) {
+            const { result } = subRes;
+            result.forEach((subName: string) => {
+              const sub = currSub.get(subName);
+              if (sub) currSub.set(subName, { ...sub, status: 'subscribed' });
+            });
+          }
+          if (unsubRes) {
+            const { result } = unsubRes;
+            result.forEach((subName: string) => currSub.delete(subName));
+          }
+          return currSub;
+        },
+        currSubscriptions,
         newSubscriptions,
       }).then(setCurrentSubscriptions);
     },
-    [deribitSubscriptionArgs]
+    [sendMessage]
   );
 
   React.useEffect(() => {
@@ -134,24 +136,19 @@ export const useDeribit = (
 
   return {
     readyState,
+    connect,
+    disconnect,
+    //
+    currentSubscriptions,
     orderbook,
     lastPrice,
     trades,
-    connect,
-    disconnect,
-    currentSubscriptions,
+    ticker: null,
   };
 };
 
 //////////////////////////////////
 // Helper functions
-
-const getDeribitSubcriptionName = (subs: Channel, instrument: string): string =>
-  ({
-    [Channel.ORDERBOOK]: `book.${instrument}.raw`,
-    [Channel.TICKER]: `ticker.${instrument}.raw`,
-    [Channel.TRADES]: `trades.${instrument}.raw`,
-  }[subs]);
 
 function processDeribitMessage(
   msg: TWSMessageDeribit_Res,
@@ -216,7 +213,7 @@ function processDeribitMessage(
           side: d.direction === 'buy' ? Side.BUY : Side.SELL,
           price: d.price,
           timestamp: d.timestamp,
-          tickDirection: TICK_DIRECTION_MAP[d.tick_direction],
+          tickDirection: TICK_DIRECTION_MAP_DERIBIT[d.tick_direction],
         })
       );
       actions.setTrades((ts: TTrade[] | null) => {
@@ -237,7 +234,7 @@ function processDeribitMessage(
 //////////////////////////////////
 // Types
 
-export type TWSMessageDeribit_Res_Subscription = {
+type TWSMessageDeribit_Res_Subscription = {
   result: string[];
 };
 type TWSMessageDeribit_Req_Subscription = {
