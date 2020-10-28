@@ -23,7 +23,7 @@ export const useBitmex = (
 
   const { readyState, connect } = useWebSocket(WS_URL_BITMEX, {
     ...wsoptions,
-    manualConnect: subs.current.size === 0 ? true : wsoptions?.manualConnect,
+    // autoConnect: subs.current.size !== 0 ? true : wsoptions?.autoConnect,
     onOpen: () => {
       if (wsoptions?.onOpen) wsoptions?.onOpen();
       console.log('connected to bmex');

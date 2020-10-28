@@ -1,12 +1,11 @@
 // https://docs.deribit.com/#json-rpc
 import React from 'react';
 
-import { useWebSocket } from '../utils/useWebSocket';
+import { ReadyState, useWebSocket } from '../utils/useWebSocket';
 import {
   // applyExchangeOrderBookEdits,
   TOrderBook,
   // TOrderBookSide,
-  getSubs,
 } from '../utils';
 import {
   Side,
@@ -16,6 +15,7 @@ import {
   TTrade,
   Exchange,
   TWSOptions,
+  TWSCurrentSubscriptions,
 } from '../types';
 
 const WS_URL_DERIBIT = 'wss://www.deribit.com/ws/api/v2';
@@ -32,14 +32,14 @@ export const useDeribit = (
   subscriptions: TSubscription[] = [],
   wsOptions?: TWSOptions & { url?: string }
 ) => {
-  const subs = React.useMemo(() => getDeribitSubs(subscriptions), [
-    subscriptions,
-  ]);
+  const [currentSubscriptions, setCurrentSubscriptions] = React.useState<
+    TWSCurrentSubscriptions
+  >(new Map());
 
   const [orderbook, setOrderbook] = React.useState<TOrderBook | null>(null);
   const [lastPrice, setLastPrice] = React.useState<number | null>(null);
   const [trades, setTrades] = React.useState<TTrade[] | null>(null);
-  const [options, setOptions] = React.useState<any>({}); // TODO: types
+  const [options] = React.useState<any>({}); // TODO: types
 
   const {
     readyState,
@@ -52,8 +52,9 @@ export const useDeribit = (
     {
       ...wsOptions,
       onOpen: async () => {
-        subscribe(subscriptions);
-        // Get the heartbeat going
+        // subscribe first
+        await syncSubscribtions(subscriptions);
+        // then get the heartbeat going
         await sendMessage({
           jsonrpc: '2.0',
           method: 'public/set_heartbeat',
@@ -72,38 +73,74 @@ export const useDeribit = (
     }
   );
 
-  const subscribe = React.useCallback(
-    (ss: TSubscription[]) => {
-      const channels = ss
-        .filter(s => s.exchange === Exchange.DERIBIT)
-        .map(({ channel, instrument, options }) => {
-          if (options) {
-            // TODO: do the options stuff
-            setOptions((o: any) => {
-              // TODO:
-              if (!o[instrument]) o[instrument] = {};
-              o[instrument][channel] = options;
-              return o;
-            });
-          }
-          return getSubcriptionName(channel, instrument);
-        });
+  // setOptions((o: any) => {
+  //   // TODO:
+  //   if (!o[instrument]) o[instrument] = {};
+  //   o[instrument][channel] = options;
+  //   return o;
+  // });
 
-      sendMessage({
-        jsonrpc: '2.0',
-        method: 'public/subscribe',
-        params: { channels },
+  const syncSubscribtions = React.useCallback(
+    async (ss: TSubscription[]): Promise<void> => {
+      const updCurrent = new Map(currentSubscriptions);
+      const channelsToSubscribe: Set<string> = new Set();
+      const channelsToUnsibscribe: Set<string> = new Set();
+      updCurrent.forEach((_, k) => channelsToUnsibscribe.add(k));
+
+      ss.filter(s => s.exchange === Exchange.DERIBIT).forEach(s => {
+        const { channel, instrument } = s;
+        const subName = getDeribitSubcriptionName(channel, instrument);
+        const subInfo = updCurrent.get(subName);
+        if (subInfo) {
+          channelsToUnsibscribe.delete(subName);
+        } else {
+          channelsToSubscribe.add(subName);
+          updCurrent.set(subName, { info: s, status: 'subscribing' });
+        }
       });
-      // subcriptionRes.result.forEach(s => {
-      //   if (s.startsWith('trades.')) setTrades([]);
-      // });
+
+      if (channelsToSubscribe.size === 0 && channelsToUnsibscribe.size === 0)
+        return;
+
+      const promises: Array<null | Promise<TWSMessageDeribit_Res>> = [
+        null,
+        null,
+      ];
+      if (channelsToSubscribe.size > 0) {
+        promises[0] = sendMessage({
+          jsonrpc: '2.0',
+          method: 'public/subscribe',
+          params: { channels: Array.from(channelsToSubscribe) },
+        });
+      }
+      if (channelsToUnsibscribe.size > 0) {
+        promises[1] = sendMessage({
+          jsonrpc: '2.0',
+          method: 'public/unsubscribe',
+          params: { channels: Array.from(channelsToUnsibscribe) },
+        });
+      }
+      Promise.all(promises).then(([subRes, unsubRes]) => {
+        if (subRes) {
+          const { result } = subRes as TWSMessageDeribit_Res_Subscription;
+          result.forEach(subName => {
+            const sub = updCurrent.get(subName);
+            if (sub) updCurrent.set(subName, { ...sub, status: 'subscribed' });
+          });
+        }
+        if (unsubRes) {
+          const { result } = unsubRes as TWSMessageDeribit_Res_Subscription;
+          result.forEach(subName => updCurrent.delete(subName));
+        }
+        setCurrentSubscriptions(updCurrent);
+      });
     },
-    [sendMessage]
+    [sendMessage, currentSubscriptions]
   );
 
   React.useEffect(() => {
-    console.log('process deribit subscription change', subs);
-  }, [subs]);
+    if (readyState === ReadyState.OPEN) syncSubscribtions(subscriptions);
+  }, [subscriptions]);
 
   React.useEffect(() => {
     if (!lastMessage) return;
@@ -178,13 +215,20 @@ export const useDeribit = (
     // }
   }, [sendMessage, lastMessage, options]);
 
-  return { readyState, orderbook, lastPrice, trades, connect, disconnect };
+  return {
+    readyState,
+    orderbook,
+    lastPrice,
+    trades,
+    connect,
+    disconnect,
+    currentSubscriptions,
+  };
 };
 
 // Helper functions
 
-const getDeribitSubs = getSubs(Exchange.DERIBIT);
-const getSubcriptionName = (subs: Channel, instrument: string): string =>
+const getDeribitSubcriptionName = (subs: Channel, instrument: string): string =>
   ({
     [Channel.ORDERBOOK]: `book.${instrument}.raw`,
     [Channel.TICKER]: `ticker.${instrument}.raw`,

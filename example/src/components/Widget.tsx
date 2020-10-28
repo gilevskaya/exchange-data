@@ -27,7 +27,7 @@ export const ExchangeHeader = React.memo(
     const textColor = {
       [ReadyState.UNINITIATED]: 'black-600',
       [ReadyState.OPEN]: 'buy',
-      [ReadyState.CLOSED]: 'sell',
+      [ReadyState.CLOSED]: 'black-600',
       [ReadyState.CONNECTING]: 'buy-dark',
       [ReadyState.CLOSING]: 'sell-dark',
     }[readyState];

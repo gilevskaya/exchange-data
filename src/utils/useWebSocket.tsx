@@ -81,7 +81,6 @@ export function useWebSocket<Res, Req = WebSocketMessage>(
       };
       newws.onclose = e => {
         setReadyState(WebSocket.CLOSED);
-        ws.current = null;
         if (options?.onClose) options.onClose(e);
         if (options?.shouldReconnect) connect();
       };
@@ -101,7 +100,6 @@ export function useWebSocket<Res, Req = WebSocketMessage>(
   const disconnect = React.useCallback((): Promise<boolean> => {
     if (ws.current) {
       ws.current.close();
-      ws.current = null;
       return Promise.resolve(true);
     }
     return Promise.resolve(false);
@@ -110,8 +108,8 @@ export function useWebSocket<Res, Req = WebSocketMessage>(
   // connect & re-connect:
   React.useEffect(() => {
     if (ws.current == null || ws.current.readyState === WebSocket.CLOSED) {
-      if (!options?.manualConnect) connect();
-      else if (ws.current && options?.shouldReconnect) connect();
+      if (ws.current === null && options?.autoConnect) connect();
+      if (ws.current && options?.shouldReconnect) connect();
     }
   }, [ws, connect, sendMessage, options]);
 

@@ -5,34 +5,19 @@ import { useBitmex, Exchange, Channel, TSubscription } from '../../../dist';
 import { Widget, ExchangeHeader } from '../components/Widget';
 import { Trades } from '../components/Trades';
 
-const SUBSCRIPTIONS_BITMEX = new Map([
-  [
-    Channel.TICKER,
-    {
-      exchange: Exchange.BITMEX,
-      channel: Channel.TICKER,
-      instrument: 'XBTUSD',
-    },
-  ],
-  [
-    Channel.TRADES,
-    {
-      exchange: Exchange.BITMEX,
-      channel: Channel.TRADES,
-      instrument: 'XBTUSD',
-      options: {
-        limit: 100,
-      },
-    },
-  ],
-]);
+const SUBSCRIPTIONS_BITMEX: Map<Channel, TSubscription> = new Map(
+  [Channel.TICKER, Channel.TRADES, Channel.ORDERBOOK].map(channel => [
+    channel,
+    { exchange: Exchange.BITMEX, instrument: 'XBTUSD', channel },
+  ])
+);
 
 export const Bitmex = () => {
   const [subscriptions, setSubscriptions] = React.useState<Set<Channel>>(
     new Set([Channel.TRADES, Channel.TICKER])
   );
   const { readyState, trades } = useBitmex([], {
-    manualConnect: true,
+    autoConnect: false,
     dev: {
       connectAlert: 'Deribit tries to connect',
     },

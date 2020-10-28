@@ -48,9 +48,17 @@ export type TWSOptions = {
   onOpen?: Function;
   onClose?: Function;
   onError?: Function;
-  manualConnect?: boolean;
+  autoConnect?: boolean;
   shouldReconnect?: boolean;
   dev?: { connectAlert?: string };
 };
 
 export type TWSSendMessage<Res, Req> = (req: Req | string) => Promise<Res>;
+
+export type TWSCurrentSubscriptions = Map<
+  string,
+  {
+    info: TSubscription;
+    status: 'subscribed' | 'subscribing' | 'unsubscribing';
+  } // string - for connected sub name - vs null connecting
+>;
