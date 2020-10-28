@@ -43,7 +43,7 @@ const Trade = ({
   }, [timestamp, hideTime]);
 
   return (
-    <div className="flex text-sm">
+    <div className="flex text-sm items-end">
       <div className={`pl-2 pr-1 flex-1 text-right`}>{num.pretty(size)}</div>
       <div className={`pl-2 pr-1 w-2/5 text-right font-semibold text-${color}`}>
         <span>{decPrice}</span>
