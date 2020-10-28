@@ -36,6 +36,7 @@ export const Bitmex = () => {
     currentSubscriptions,
   } = useBitmex(subscriptionsInfo, {
     autoConnect: true,
+    shouldReconnect: true,
     dev: {
       connectAlert: 'Bitmex is trying to connect, ok?',
     },

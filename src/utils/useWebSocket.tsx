@@ -110,7 +110,7 @@ export function useWebSocket<Res, Req = WebSocketMessage>(
   React.useEffect(() => {
     if (ws.current == null || ws.current.readyState === WebSocket.CLOSED) {
       if (ws.current === null && options?.autoConnect) connect();
-      if (ws.current && options?.shouldReconnect) connect();
+      else if (ws.current && options?.shouldReconnect) connect();
     }
   }, [ws, connect, sendMessage, options]);
 

@@ -170,6 +170,26 @@ function processDeribitMessage(
   const option = options[instrument] && options[instrument][type];
 
   switch (type) {
+    case 'trades': {
+      const newTrades = (msg as TWSMessageDeribit_Res_Trades).params.data.map(
+        d => ({
+          id: d.trade_id,
+          size: d.amount,
+          side: d.direction === 'buy' ? Side.BUY : Side.SELL,
+          price: d.price,
+          timestamp: d.timestamp,
+          tickDirection: TICK_DIRECTION_MAP_DERIBIT[d.tick_direction],
+        })
+      );
+      actions.setTrades((ts: TTrade[] | null) => {
+        if (ts === null) ts = [];
+        const upd = [...newTrades, ...ts];
+        if (upd.length > option?.limit || TRADES_STORE_LIMIT) {
+          return upd.slice(0, option?.limit || TRADES_STORE_LIMIT);
+        } else return upd;
+      });
+      break;
+    }
     case 'book': {
       // const {
       //   bids,
@@ -200,26 +220,6 @@ function processDeribitMessage(
       // setLastPrice(
       //   (lastMessage as TWSMessageDeribit_Res_Ticker).params.data.last_price
       // );
-      break;
-    }
-    case 'trades': {
-      const newTrades = (msg as TWSMessageDeribit_Res_Trades).params.data.map(
-        d => ({
-          id: d.trade_id,
-          size: d.amount,
-          side: d.direction === 'buy' ? Side.BUY : Side.SELL,
-          price: d.price,
-          timestamp: d.timestamp,
-          tickDirection: TICK_DIRECTION_MAP_DERIBIT[d.tick_direction],
-        })
-      );
-      actions.setTrades((ts: TTrade[] | null) => {
-        if (ts === null) ts = [];
-        const upd = [...newTrades, ...ts];
-        if (upd.length > option?.limit || TRADES_STORE_LIMIT) {
-          return upd.slice(0, option?.limit || TRADES_STORE_LIMIT);
-        } else return upd;
-      });
       break;
     }
     default: {

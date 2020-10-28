@@ -159,7 +159,7 @@ function processBitmexMessage(
         size: d.size,
         side: d.side === 'Buy' ? Side.BUY : Side.SELL,
         price: d.price,
-        timestamp: d.timestamp,
+        timestamp: Date.parse(d.timestamp),
         tickDirection: TICK_DIRECTION_MAP_BITMEX[d.tickDirection],
       }));
       actions.setTrades((ts: TTrade[] | null) => {
