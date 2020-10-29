@@ -1,7 +1,10 @@
 import {
+  Side,
   Channel,
   Exchange,
   TSubscription,
+  TOrderBook,
+  TOrderBookEdit,
   TWSCurrentSubscriptions,
 } from '../types';
 
@@ -69,8 +72,49 @@ export function syncSubscriptions<ResSubscription>({
   );
 }
 
-export {
-  applyExchangeOrderBookEdits,
-  TOrderBook,
-  TOrderBookSide,
-} from './orderbook';
+export function applyExchangeOrderBookEdits(
+  orderbook: TOrderBook | null,
+  edits: Array<{
+    side: Side;
+    edit: TOrderBookEdit;
+  }>
+  // step: number = 0.5 // TODO: ...
+): TOrderBook | null {
+  let { entries, asks, bids }: TOrderBook =
+    orderbook != null ? orderbook : { entries: new Map(), asks: [], bids: [] };
+
+  for (const { side, edit } of edits) {
+    const { price, size, id } = edit;
+
+    if (size === 0) {
+      // deletion
+      entries.delete(price);
+      if (side === Side.SELL) {
+        const i = asks.indexOf(price);
+        if (i !== -1) delete asks[i];
+      } else {
+        const i = bids.indexOf(price);
+        if (i !== -1) delete bids[i];
+      }
+    } else {
+      // insert
+      entries.set(price, { side, price, size, total: 0, id });
+      if (side === Side.SELL) {
+        if (asks.indexOf(price) === -1) {
+          // asks = sortedInsert(price, asks, true);
+          asks = [...asks, price];
+        }
+      } else {
+        if (bids.indexOf(price) === -1) {
+          // bids = sortedInsert(price, bids, false);
+          bids = [...bids, price];
+        }
+      }
+    }
+  }
+  return {
+    entries,
+    asks: asks.filter(e => e),
+    bids: bids.filter(e => e),
+  };
+}

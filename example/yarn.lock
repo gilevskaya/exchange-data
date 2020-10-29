@@ -2909,11 +2909,6 @@ https-browserify@^1.0.0:
   resolved "https://registry.yarnpkg.com/https-browserify/-/https-browserify-1.0.0.tgz#ec06c10e0a34c0f2faf199f7fd7fc78fffd03c73"
   integrity sha1-7AbBDgo0wPL68Zn3/X/Hj//QPHM=
 
-humanize@^0.0.9:
-  version "0.0.9"
-  resolved "https://registry.yarnpkg.com/humanize/-/humanize-0.0.9.tgz#1994ffaecdfe9c441ed2bdac7452b7bb4c9e41a4"
-  integrity sha1-GZT/rs3+nEQe0r2sdFK3u0yeQaQ=
-
 iconv-lite@0.4.24:
   version "0.4.24"
   resolved "https://registry.yarnpkg.com/iconv-lite/-/iconv-lite-0.4.24.tgz#2022b4b25fbddc21d2f524974a474aafe733908b"
@@ -4546,10 +4541,10 @@ react-app-polyfill@^1.0.0:
     object-assign "^4.1.1"
     scheduler "^0.20.0"
 
-react-grid-dashboard@^0.0.14:
-  version "0.0.14"
-  resolved "https://registry.yarnpkg.com/react-grid-dashboard/-/react-grid-dashboard-0.0.14.tgz#784ed70a27eb8f38b1fa834e59a1582e1089a468"
-  integrity sha512-+znwTQv7mRc+7rXs9p3HcQ6VOEIEzcCqrAQp4oSoKhzqO5su9ySNj+gMVPhNsWBneoSKClbfF+eFY+sepmy2cA==
+react-grid-dashboard@^0.0.16:
+  version "0.0.16"
+  resolved "https://registry.yarnpkg.com/react-grid-dashboard/-/react-grid-dashboard-0.0.16.tgz#dffebe8c5769da2c7e863efff88531a52df805c7"
+  integrity sha512-3kMNHWVRbTpfMbIyfGZ6U+B3q8pSKgK94lWzk/PLZ7xuwDnkcgqq1ke5SvepPsugeVlViD/Azfgp8YK+0ic1xg==
 
 "react-is@>= 16.8.0":
   version "17.0.0"

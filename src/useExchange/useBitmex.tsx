@@ -2,13 +2,7 @@
 import React from 'react';
 
 import { ReadyState, useWebSocket } from '../utils/useWebSocket';
-import {
-  TRADES_STORE_LIMIT,
-  //   applyExchangeOrderBookEdits,
-  TOrderBook,
-  //   TOrderBookSide,
-  syncSubscriptions,
-} from '../utils';
+import { TRADES_STORE_LIMIT, syncSubscriptions } from '../utils';
 import {
   TickDirection,
   Side,
@@ -16,6 +10,7 @@ import {
   Channel,
   TSubscription,
   TTrade,
+  TOrderBook,
   TWSOptions,
   TWSCurrentSubscriptions,
 } from '../types';

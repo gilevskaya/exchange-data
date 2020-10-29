@@ -4,10 +4,8 @@ import React from 'react';
 import { ReadyState, useWebSocket } from '../utils/useWebSocket';
 import {
   TRADES_STORE_LIMIT,
-  // applyExchangeOrderBookEdits,
-  TOrderBook,
-  // TOrderBookSide,
   syncSubscriptions,
+  applyExchangeOrderBookEdits,
 } from '../utils';
 import {
   Side,
@@ -15,6 +13,7 @@ import {
   TSubscription,
   TickDirection,
   TTrade,
+  TOrderBook,
   TWSOptions,
   TWSCurrentSubscriptions,
   Exchange,
@@ -128,6 +127,8 @@ export const useDeribit = (
           jsonrpc: '2.0',
         }),
       setTrades,
+      setOrderbook,
+      setLastPrice,
     });
   }, [sendMessage, lastMessage, options]);
 
@@ -153,6 +154,8 @@ function processDeribitMessage(
   actions: {
     sendMessageHeartbeat: Function;
     setTrades: any;
+    setOrderbook: any;
+    setLastPrice: any;
   }
 ) {
   if ('method' in msg && msg.method === 'heartbeat') {
@@ -191,35 +194,35 @@ function processDeribitMessage(
       break;
     }
     case 'book': {
-      // const {
-      //   bids,
-      //   asks,
-      //   change_id: id,
-      // } = (lastMessage as TWSMessageDeribit_Res_Orderbook).params.data;
+      const {
+        bids,
+        asks,
+        change_id: id,
+      } = (msg as TWSMessageDeribit_Res_Orderbook).params.data;
 
-      // const mapEditFormat = (edit: TDeribitOrderBookEdit) => {
-      //   const [, price, size] = edit;
-      //   return { id, price, size };
-      // };
+      const mapEditFormat = (edit: TDeribitOrderBookEdit) => {
+        const [, price, size] = edit;
+        return { id, price, size };
+      };
 
-      // setOrderbook(ob =>
-      //   applyExchangeOrderBookEdits(ob, [
-      //     ...asks.map(edit => ({
-      //       side: TOrderBookSide.ASKS,
-      //       edit: mapEditFormat(edit),
-      //     })),
-      //     ...bids.map(edit => ({
-      //       side: TOrderBookSide.BIDS,
-      //       edit: mapEditFormat(edit),
-      //     })),
-      //   ])
-      // );
+      actions.setOrderbook((ob: TOrderBook) =>
+        applyExchangeOrderBookEdits(ob, [
+          ...asks.map(edit => ({
+            side: Side.SELL,
+            edit: mapEditFormat(edit),
+          })),
+          ...bids.map(edit => ({
+            side: Side.BUY,
+            edit: mapEditFormat(edit),
+          })),
+        ])
+      );
       break;
     }
     case 'ticker': {
-      // setLastPrice(
-      //   (lastMessage as TWSMessageDeribit_Res_Ticker).params.data.last_price
-      // );
+      actions.setLastPrice(
+        (msg as TWSMessageDeribit_Res_Ticker).params.data.last_price
+      );
       break;
     }
     default: {

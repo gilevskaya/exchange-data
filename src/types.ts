@@ -41,6 +41,28 @@ export type TTrade = {
   timestamp: number;
   tickDirection: TickDirection; // tick_direction
 };
+export type TOrderBookEdit = {
+  id: number;
+  price: number;
+  size: number;
+  sizeBTC?: number;
+};
+type TOrderBookEntryBase = {
+  side: Side;
+  price: number;
+  size: number;
+  sizeBTC?: number;
+  total: number;
+};
+export type TOrderBookEntry = TOrderBookEntryBase & {
+  id: number;
+};
+export type TOrderBookEntries = Map<number, TOrderBookEntry>;
+export type TOrderBook = {
+  entries: TOrderBookEntries;
+  asks: number[];
+  bids: number[];
+};
 
 // useWebSocket types
 

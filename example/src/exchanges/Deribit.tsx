@@ -4,6 +4,7 @@ import Dashboard from 'react-grid-dashboard';
 import { Exchange, Channel, TSubscription, useDeribit } from '../../../dist';
 import { Widget, ExchangeHeader } from '../components/Widget';
 import { Trades } from '../components/Trades';
+import { Orderbook } from '../components/Orderbook';
 
 const SUBSCRIPTIONS_DERIBIT: Map<Channel, TSubscription> = new Map(
   [Channel.TICKER, Channel.TRADES, Channel.ORDERBOOK].map(channel => [
@@ -12,9 +13,11 @@ const SUBSCRIPTIONS_DERIBIT: Map<Channel, TSubscription> = new Map(
   ])
 );
 
+const depth = 14;
+
 export const Deribit = () => {
   const [subscriptions, setSubscriptions] = React.useState<Set<Channel>>(
-    new Set([Channel.TICKER, Channel.TRADES])
+    new Set([Channel.TICKER, Channel.TRADES, Channel.ORDERBOOK])
   );
   const subscriptionsInfo = React.useMemo(
     () =>
@@ -30,10 +33,12 @@ export const Deribit = () => {
 
   const {
     readyState,
-    trades,
     connect,
     disconnect,
     currentSubscriptions,
+    trades,
+    orderbook,
+    lastPrice,
   } = useDeribit(subscriptionsInfo, {
     // url: 'wss://test.deribit.com/ws/api/v2',
     autoConnect: true,
@@ -66,8 +71,15 @@ export const Deribit = () => {
         />
       </Dashboard.Item>
       <Dashboard.Item {...{ x: 1, y: 1 }}>
-        <Widget isFull={true}>
-          <div className="h-full">{''}</div>
+        <Widget isFull={true} isScrollable={true}>
+          {orderbook && (
+            <Orderbook
+              orderbook={orderbook}
+              lastPrice={lastPrice || 123}
+              depth={depth}
+              step={0.5}
+            />
+          )}
         </Widget>
       </Dashboard.Item>
       <Dashboard.Item {...{ x: 1, y: 2 }}>

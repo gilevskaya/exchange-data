@@ -89,7 +89,7 @@ export const Widget = ({
   isScrollable,
   isFull = true,
 }: {
-  children: React.ReactElement;
+  children: React.ReactElement | null;
   isScrollable?: boolean;
   isFull?: boolean;
 }) => (
