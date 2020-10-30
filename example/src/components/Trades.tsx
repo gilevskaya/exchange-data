@@ -50,10 +50,10 @@ const Trade = ({
       >
         {hideTime ? '' : relativeTime}
       </div>
-      <div className="pl-1 flex-1 text-black-300">
+      <div className="pl-1 flex-1 text-black-200">
         <Background
           color={side === Side.SELL ? 'sell-dark' : 'buy-dark'}
-          opacity={50}
+          opacity={60}
           size={size}
           maxSize={50000}
         >
@@ -83,13 +83,13 @@ export const Size = ({ size }: { size: number }) => {
 
 export const Price = ({ price, side }: { price: number; side?: Side }) => {
   const color = (() => {
-    if (side == null) return 'black-300';
+    if (side == null) return 'black-200';
     return side === Side.BUY ? 'buy' : 'sell';
   })();
   const [decPrice, remPrice] = num.pretty(price, 1).split(',');
 
   return (
-    <div className={`w-full text-right font-semibold text-${color}`}>
+    <div className={`z-10 w-full text-right font-semibold text-${color}`}>
       <span>{decPrice}</span>
       <span className={`${remPrice === '0' ? `text-${color}-dark` : ''}`}>
         .{remPrice}

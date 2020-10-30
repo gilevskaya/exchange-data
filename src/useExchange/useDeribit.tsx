@@ -174,16 +174,16 @@ function processDeribitMessage(
 
   switch (type) {
     case 'trades': {
-      const newTrades = (msg as TWSMessageDeribit_Res_Trades).params.data.map(
-        d => ({
+      const newTrades = (msg as TWSMessageDeribit_Res_Trades).params.data
+        .map(d => ({
           id: d.trade_id,
           size: d.amount,
           side: d.direction === 'buy' ? Side.BUY : Side.SELL,
           price: d.price,
           timestamp: d.timestamp,
           tickDirection: TICK_DIRECTION_MAP_DERIBIT[d.tick_direction],
-        })
-      );
+        }))
+        .reverse();
       actions.setTrades((ts: TTrade[] | null) => {
         if (ts === null) ts = [];
         const upd = [...newTrades, ...ts];

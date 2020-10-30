@@ -22,10 +22,10 @@
   "peerDependencies": {
     "react": ">=16"
   },
-  "husky": {	
-    "hooks": {	
-      "pre-commit": "tsdx lint"	
-    }	
+  "husky": {
+    "hooks": {
+      "pre-commit": "tsdx lint"
+    }
   },
   "prettier": {
     "printWidth": 80,
@@ -33,7 +33,6 @@
     "singleQuote": true,
     "trailingComma": "es5"
   },
-  
   "name": "use-exchange",
   "author": "Alena Gilevskaya",
   "module": "dist/use-exchange.esm.js",
@@ -49,6 +48,7 @@
   ],
   "devDependencies": {
     "@size-limit/preset-small-lib": "^4.6.0",
+    "@types/lodash": "^4.14.163",
     "@types/react": "^16.9.52",
     "@types/react-dom": "^16.9.8",
     "eslint-config-react-app": "^5.2.1",

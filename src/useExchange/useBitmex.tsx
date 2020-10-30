@@ -2,7 +2,11 @@
 import React from 'react';
 
 import { ReadyState, useWebSocket } from '../utils/useWebSocket';
-import { TRADES_STORE_LIMIT, syncSubscriptions } from '../utils';
+import {
+  TRADES_STORE_LIMIT,
+  syncSubscriptions,
+  applyExchangeOrderBookEdits,
+} from '../utils';
 import {
   TickDirection,
   Side,
@@ -28,6 +32,8 @@ export const useBitmex = (
   const [orderbook, setOrderbook] = React.useState<TOrderBook | null>(null);
   const [lastPrice, setLastPrice] = React.useState<number | null>(null);
   const [trades, setTrades] = React.useState<TTrade[] | null>(null);
+
+  const obBitmexId = React.useRef<Map<number, number>>(new Map());
 
   const {
     readyState,
@@ -121,7 +127,17 @@ export const useBitmex = (
 
   React.useEffect(() => {
     if (!lastMessage) return;
-    processBitmexMessage(lastMessage, { setTrades });
+    processBitmexMessage(lastMessage, {
+      setTrades,
+      setLastPrice,
+      setOrderbook,
+      obBitmexId: {
+        // @ts-ignore
+        get: k => obBitmexId.current.get(k),
+        // @ts-ignore
+        set: (k, v) => obBitmexId.current.set(k, v),
+      },
+    });
   }, [lastMessage]);
 
   return {
@@ -143,10 +159,16 @@ export const useBitmex = (
 function processBitmexMessage(
   msg: TWSMessageBitmex_Res,
   // options: any,
-  actions: { setTrades: Function }
+  actions: {
+    setTrades: Function;
+    setLastPrice: Function;
+    setOrderbook: Function;
+    obBitmexId: { get: Function; set: Function };
+  }
 ) {
   if ('docs' in msg) return;
   if (!('table' in msg)) return;
+
   switch (msg.table) {
     case 'trade': {
       const newTrades = (msg as TWSMessageBitmex_Res_Trades).data.map(d => ({
@@ -166,8 +188,46 @@ function processBitmexMessage(
       });
       break;
     }
+    case 'instrument': {
+      const { lastPrice } = (msg as TWSMessageBitmex_Res_Ticker).data[0];
+      if (lastPrice) actions.setLastPrice(lastPrice);
+      break;
+    }
+    case 'orderBookL2_25': {
+      if (msg.action === 'partial' || msg.action === 'insert') {
+        const edits = (msg.data as TBitmexOrderBookEdit[]).map(
+          ({ id, side, size, price }) => {
+            actions.obBitmexId.set(id, price);
+            return {
+              side: side === 'Buy' ? Side.BUY : Side.SELL,
+              edit: { id, size, price },
+            };
+          }
+        );
+        actions.setOrderbook((ob: TOrderBook) =>
+          applyExchangeOrderBookEdits(
+            msg.action === 'partial' ? null : ob,
+            edits
+          )
+        );
+      } else if (msg.action === 'update' || msg.action === 'delete') {
+        const edits = (msg.data as TBitmexOrderBookEdit[]).map(edit => {
+          const { id, side } = edit;
+          const price = actions.obBitmexId.get(id) || 0; // >.<
+          const size = msg.action === 'update' ? edit.size : 0;
+          return {
+            side: side === 'Buy' ? Side.BUY : Side.SELL,
+            edit: { id, size, price },
+          };
+        });
+        actions.setOrderbook((ob: TOrderBook) =>
+          applyExchangeOrderBookEdits(ob, edits)
+        );
+      }
+      break;
+    }
     default: {
-      console.log('bmex msg', msg, actions);
+      console.log('bmex msg', msg);
     }
   }
 }
@@ -193,58 +253,58 @@ type TWSMessageBitmex_Res_Subscription = {
   success: boolean;
 };
 
-// export type TDeribitOrderBookEdit = [
-//   'new' | 'change' | 'delete',
-//   number,
-//   number
-// ]; // type, price, size
-// type TWSMessageDeribit_Res_Orderbook = {
-//   method: 'subscription';
-//   params: {
-//     channel: string; // "book.BTC-PERPETUAL.raw";
-//     data: {
-//       asks: TDeribitOrderBookEdit[];
-//       bids: TDeribitOrderBookEdit[];
-//       change_id: number;
-//     };
-//   };
-// };
-
-// type TWSMessageDeribit_Res_Ticker = {
-//   method: 'subscription';
-//   params: {
-//     channel: string; // "ticker.BTC-PERPETUAL.raw";
-//     data: {
-//       last_price: number;
-//       best_bid_price: number;
-//       best_ask_price: number;
-//     };
-//   };
-// };
-
 const TICK_DIRECTION_MAP_BITMEX = {
   PlusTick: TickDirection.PLUS,
   ZeroPlusTick: TickDirection.ZERO_PLUS,
   MinusTick: TickDirection.MINUS,
   ZeroMinusTick: TickDirection.ZERO_MINUS,
 };
+type TBitmextTickDirection =
+  | 'ZeroMinusTick'
+  | 'ZeroPlusTick'
+  | 'MinusTick'
+  | 'PlusTick';
+type TBitmexSide = 'Sell' | 'Buy';
 type TWSMessageBitmex_Res_Trades = {
   table: 'trade';
   data: Array<{
     trdMatchID: string;
     timestamp: string;
     price: number;
-    side: 'Sell' | 'Buy';
+    side: TBitmexSide;
     size: number;
     symbol: string;
-    tickDirection: 'ZeroMinusTick' | 'ZeroPlusTick' | 'MinusTick' | 'PlusTick';
+    tickDirection: TBitmextTickDirection;
   }>;
 };
 
+type TWSMessageBitmex_Res_Ticker = {
+  table: 'instrument';
+  data: [
+    {
+      timestamp: string;
+      symbol: string;
+      lastPrice?: number;
+      lastTickDirection?: TBitmextTickDirection;
+    }
+  ];
+};
+
+type TBitmexOrderBookEdit_Base = { id: number; side: TBitmexSide };
+type TBitmexOrderBookEdit = TBitmexOrderBookEdit_Base & {
+  price: number;
+  size: number;
+  timestamp: number;
+};
+type TWSMessageBitmex_Res_Orderbook = { table: 'orderBookL2_25' } & (
+  | { action: 'partial' | 'update' | 'insert'; data: TBitmexOrderBookEdit[] }
+  | { action: 'delete'; data: TBitmexOrderBookEdit_Base[] }
+);
+
 type TWSMessageBitmex_Res_Data =
-  // | TWSMessageDeribit_Res_Orderbook
-  // | TWSMessageDeribit_Res_Ticker
-  TWSMessageBitmex_Res_Trades;
+  | TWSMessageBitmex_Res_Trades
+  | TWSMessageBitmex_Res_Ticker
+  | TWSMessageBitmex_Res_Orderbook;
 
 type TWSMessageBitmex_Res =
   | TWSMessageBitmex_Res_Welcome

@@ -59,7 +59,7 @@ export const ExchangeHeader = React.memo(
 
     return (
       <div
-        className={`select-none px-1 text-${textColor} text-lg flex items-center justify-between`}
+        className={`select-none px-3 text-${textColor} text-lg flex items-center justify-between`}
       >
         {/* <button className={`mr-2 rounded-full h-3 w-3 bg-${textColor}`} /> */}
         <button
@@ -76,7 +76,7 @@ export const ExchangeHeader = React.memo(
             else if (availableAction === 'disconnect') disconnect();
           }}
         >
-          {exchange}
+          <i className={`beacon exc-${exchange}-s`} />
         </button>
         <div className="text-sm">{subscriptionButtons}</div>
       </div>

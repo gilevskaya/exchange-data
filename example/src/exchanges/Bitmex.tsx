@@ -4,6 +4,7 @@ import Dashboard from 'react-grid-dashboard';
 import { useBitmex, Exchange, Channel, TSubscription } from '../../../dist';
 import { Widget, ExchangeHeader } from '../components/Widget';
 import { Trades } from '../components/Trades';
+import { Orderbook } from '../components/Orderbook';
 
 const SUBSCRIPTIONS_BITMEX: Map<Channel, TSubscription> = new Map(
   [Channel.TICKER, Channel.TRADES, Channel.ORDERBOOK].map(channel => [
@@ -12,9 +13,11 @@ const SUBSCRIPTIONS_BITMEX: Map<Channel, TSubscription> = new Map(
   ])
 );
 
+const depth = 14;
+
 export const Bitmex = () => {
   const [subscriptions, setSubscriptions] = React.useState<Set<Channel>>(
-    new Set([Channel.TRADES])
+    new Set([Channel.TICKER, Channel.TRADES, Channel.ORDERBOOK])
   );
   const subscriptionsInfo = React.useMemo(
     () =>
@@ -31,6 +34,8 @@ export const Bitmex = () => {
   const {
     readyState,
     trades,
+    orderbook,
+    lastPrice,
     connect,
     disconnect,
     currentSubscriptions,
@@ -66,7 +71,12 @@ export const Bitmex = () => {
       </Dashboard.Item>
       <Dashboard.Item {...{ x: 0, y: 1 }}>
         <Widget isFull={true}>
-          <div className="h-full">{''}</div>
+          <Orderbook
+            orderbook={orderbook}
+            lastPrice={lastPrice}
+            depth={depth}
+            step={0.5}
+          />
         </Widget>
       </Dashboard.Item>
       <Dashboard.Item {...{ x: 0, y: 2 }}>

@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import { Side } from '../../../dist';
+import { Loading } from './Loading';
 import { Price, Size, Background } from './Trades';
 
 export type TOrderBookEdit = {
@@ -33,8 +34,8 @@ export const Orderbook = ({
   step,
   isSkipEmpty,
 }: {
-  orderbook: TOrderBook;
-  lastPrice: number;
+  orderbook: TOrderBook | null;
+  lastPrice: number | null;
   depth: number;
   step: number;
   isSkipEmpty?: boolean;
@@ -94,7 +95,7 @@ export const Orderbook = ({
     setMaxTotal(Math.max(newaskstotal, newbidstotal));
   }, [orderbook, depth, isSkipEmpty, step]);
 
-  if (!orderbook || !lastPrice || !maxTotal) return null;
+  if (!orderbook || !lastPrice || !maxTotal) return <Loading />;
   return (
     <div className="py-3 font-mono">
       {[...asks].reverse().map(({ price, size, total }, i) => (
@@ -110,7 +111,7 @@ export const Orderbook = ({
         />
       ))}
       <div className="py-1 flex justify-center">
-        <div className={`ml-3 text-sm font-semibold text-black-300`}>
+        <div className={`ml-3 text-sm font-semibold`}>
           <Price price={lastPrice} />
         </div>
       </div>
@@ -152,13 +153,13 @@ const OrderBookEntry = ({
       <div className={`ml-4`}>
         <Price price={price} side={side} />
       </div>
-      <div className="pl-2 pr-1 flex-1 text-black-500">
+      <div className="pl-2 pr-1 flex-1 text-black-400">
         <Size size={size} />
       </div>
-      <div className="pl-1 flex-1 text-black-300">
+      <div className="pl-1 flex-1 text-black-200">
         <Background
           color={side === Side.SELL ? 'sell-dark' : 'buy-dark'}
-          opacity={50}
+          opacity={60}
           size={total}
           maxSize={maxTotal}
         >

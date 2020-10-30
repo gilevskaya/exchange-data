@@ -72,14 +72,12 @@ export const Deribit = () => {
       </Dashboard.Item>
       <Dashboard.Item {...{ x: 1, y: 1 }}>
         <Widget isFull={true} isScrollable={true}>
-          {orderbook && (
-            <Orderbook
-              orderbook={orderbook}
-              lastPrice={lastPrice || 123}
-              depth={depth}
-              step={0.5}
-            />
-          )}
+          <Orderbook
+            orderbook={orderbook}
+            lastPrice={lastPrice}
+            depth={depth}
+            step={0.5}
+          />
         </Widget>
       </Dashboard.Item>
       <Dashboard.Item {...{ x: 1, y: 2 }}>

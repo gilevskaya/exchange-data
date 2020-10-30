@@ -1,3 +1,4 @@
+import { sortedIndex, sortedIndexBy } from 'lodash';
 import {
   Side,
   Channel,
@@ -101,12 +102,12 @@ export function applyExchangeOrderBookEdits(
       entries.set(price, { side, price, size, total: 0, id });
       if (side === Side.SELL) {
         if (asks.indexOf(price) === -1) {
-          // asks = sortedInsert(price, asks, true);
+          asks = sortedInsert(price, asks, true);
           asks = [...asks, price];
         }
       } else {
         if (bids.indexOf(price) === -1) {
-          // bids = sortedInsert(price, bids, false);
+          bids = sortedInsert(price, bids, false);
           bids = [...bids, price];
         }
       }
@@ -117,4 +118,16 @@ export function applyExchangeOrderBookEdits(
     asks: asks.filter(e => e),
     bids: bids.filter(e => e),
   };
+}
+
+function sortedInsert(value: number, array: number[], isAZ: boolean) {
+  const a = [...array];
+  if (isAZ) a.splice(sortedIndex(array, value), 0, value);
+  else
+    a.splice(
+      sortedIndexBy(array, value, x => -x),
+      0,
+      value
+    );
+  return a;
 }
